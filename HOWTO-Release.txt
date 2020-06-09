@@ -1,0 +1,3 @@
+
+$ ./build-and-sign-release.sh
+$ twine upload dist/*
