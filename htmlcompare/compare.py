@@ -17,6 +17,8 @@ _CompareResult = namedtuple('CompareResult', ('is_equal', 'differences'))
 class CompareResult(_CompareResult):
     def __bool__(self):
         return self.is_equal
+    # Python 2 compatibility
+    __nonzero__ = __bool__
 
 
 def is_whitespace(token):
