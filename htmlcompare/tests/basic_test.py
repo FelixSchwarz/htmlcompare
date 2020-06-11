@@ -42,3 +42,10 @@ class BasicTest(TestCase):
         with self.assertRaises(AssertionError, msg='check for stringification errors'):
             assert_same_html(expected_html, actual_html, verbose=False)
 
+    def test_can_detect_missing_tag_contents(self):
+        expected_html = '<div><b>foo</b></div>'
+        actual_html = '<div></div>'
+        assert_different_html(expected_html, actual_html)
+        with self.assertRaises(AssertionError, msg='check for stringification errors'):
+            assert_same_html(expected_html, actual_html, verbose=False)
+

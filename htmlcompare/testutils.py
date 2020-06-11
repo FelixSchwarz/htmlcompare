@@ -16,6 +16,8 @@ def stringify_token_to_str(token):
             attrs.append('%s="%s"' % (key, attr_value))
         attr_str = (' ' if attrs else '') + ' '.join(attrs)
         return '<%s%s>' % (token["name"], attr_str)
+    elif token['type'] == 'EndTag':
+        return '</%s>' % (token["name"], )
     elif token['type'] == 'Characters':
         return '%s' % token['data']
     raise NotImplementedError(token['type'])
