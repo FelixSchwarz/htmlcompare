@@ -96,12 +96,10 @@ def compare_html(expected_html, actual_html):
             continue
 
         actual_item = actual[0]
-        if item['type'] in ('StartTag', 'EmptyTag'):
+        if item['type'] in ('StartTag', 'EmptyTag', 'Characters'):
             differences = [
                 Difference(expected=item, actual=actual_item)
             ]
-        elif item['type'] == 'Characters':
-            raise NotImplementedError('should not reach this')
         else:
             assert False, 'should not reach this...'
         break
