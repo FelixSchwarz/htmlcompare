@@ -30,6 +30,8 @@ def is_equal(expected, actual):
 
     if expected['type'] not in ('StartTag', 'EmptyTag'):
         return False
+    elif actual['type'] not in ('StartTag', 'EmptyTag'):
+        return False
 
     _e = expected.copy()
     _a = actual.copy()
