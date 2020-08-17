@@ -21,6 +21,9 @@ class CompareResult(_CompareResult):
     __nonzero__ = __bool__
 
 
+def is_comment(token):
+    return (token['type'] == 'Comment')
+
 def is_whitespace(token):
     return (token['type'] == 'SpaceCharacters')
 
@@ -66,6 +69,8 @@ def compare_html(expected_html, actual_html):
             actual.pop(0)
         if is_whitespace(expected):
             continue
+        while actual and is_comment(actual[0]):
+            actual.pop(0)
 
         is_style_block = (expected['type'] == 'Characters') and tags and (tags[-1] == 'style')
         if expected['type'] == 'StartTag':
@@ -76,9 +81,9 @@ def compare_html(expected_html, actual_html):
             # just handle the simplest possible case
             assert last_item == expected["name"]
             tags.pop()
-        elif expected['type'] == 'Comment':
+        elif is_comment(expected):
             # later: compare conditional comments?
-            pass
+            continue
         elif expected['type'] == 'EmptyTag':
             # tag without closing tag (e.g. "<meta>")
             pass
@@ -90,7 +95,7 @@ def compare_html(expected_html, actual_html):
             # LATER: compare CSS
             actual.pop(0)
             continue
-        elif expected['type'] == 'Comment':
+        elif is_comment(expected):
             # LATER: compare (conditional) comments
             actual.pop(0)
             continue

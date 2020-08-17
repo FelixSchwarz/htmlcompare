@@ -20,6 +20,8 @@ def stringify_token(token):
         return '</%s>' % (token["name"], )
     elif token['type'] == 'Characters':
         return '%s' % token['data']
+    elif token['type'] == 'Comment':
+        return '<!--%s-->' % token['data']
     raise NotImplementedError(token['type'])
 
 def assert_same_html(expected_html, actual_html, verbose=True):
