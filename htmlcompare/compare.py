@@ -61,44 +61,44 @@ def compare_html(expected_html, actual_html):
     differences = None
     tags = []
     actual = list(actual_stream)
-    for item in expected_stream:
+    for expected in expected_stream:
         while actual and is_whitespace(actual[0]):
             actual.pop(0)
-        if is_whitespace(item):
+        if is_whitespace(expected):
             continue
 
-        is_style_block = (item['type'] == 'Characters') and tags and (tags[-1] == 'style')
-        if item['type'] == 'StartTag':
-            tag_name = item["name"]
+        is_style_block = (expected['type'] == 'Characters') and tags and (tags[-1] == 'style')
+        if expected['type'] == 'StartTag':
+            tag_name = expected["name"]
             tags.append(tag_name)
-        elif item['type'] == 'EndTag':
+        elif expected['type'] == 'EndTag':
             last_item = tags[-1]
             # just handle the simplest possible case
-            assert last_item == item["name"]
+            assert last_item == expected["name"]
             tags.pop()
-        elif item['type'] == 'Comment':
+        elif expected['type'] == 'Comment':
             # later: compare conditional comments?
             pass
-        elif item['type'] == 'EmptyTag':
+        elif expected['type'] == 'EmptyTag':
             # tag without closing tag (e.g. "<meta>")
             pass
 
-        if is_equal(item, actual[0]):
+        if is_equal(expected, actual[0]):
             actual.pop(0)
             continue
         elif is_style_block:
             # LATER: compare CSS
             actual.pop(0)
             continue
-        elif item['type'] == 'Comment':
+        elif expected['type'] == 'Comment':
             # LATER: compare (conditional) comments
             actual.pop(0)
             continue
 
         actual_item = actual[0]
-        if item['type'] in ('StartTag', 'EmptyTag', 'Characters'):
+        if expected['type'] in ('StartTag', 'EmptyTag', 'Characters'):
             differences = [
-                Difference(expected=item, actual=actual_item)
+                Difference(expected=expected, actual=actual_item)
             ]
         else:
             assert False, 'should not reach this...'
