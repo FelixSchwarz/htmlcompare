@@ -1,7 +1,7 @@
 htmlcompare
 =============
 
-A Python library to ensure two HTML documents are "equal". Currently the functionality is very limited but the idea is that the library should ignore differences automatically when these are not relevant for HTML semantics (e.g. `<img style="">` should be the same as `<img>`.
+A Python library to ensure two HTML documents are "equal". Currently the functionality is very limited but the idea is that the library should ignore differences automatically when these are not relevant for HTML semantics (e.g. `<img style="">` is the same as `<img>`, `style="color: black; font-weight: bold"` is equal to `style="font-weight:bold;color:black;"`).
 
 Usage
 --------------
@@ -24,7 +24,7 @@ assert_same_html('<div />', '<div></div>')
 
 Limitations / Plans
 ----------------------
-**CSS is currently not validated**. Later I hope to add CSS parsing using a real CSS parser like [tinycss2](https://github.com/Kozea/tinycss2) but right now the only support for CSS is that contents of `<style>` tags is completely ignored and that trailing `;`s in `style` attributes are stripped.
+**Only basic CSS support**. Declarations in `style` attributes are parsed with [tinycss2](https://github.com/Kozea/tinycss2) (Python 3.5+) so ordering of declarations and extra whitespace should not matter. `tinycss2` does not support Python 2 and 3.4 so the only help here is to strip trailing `;`s in `style` attributes. Contents of `<style>` tags are completely ignored for now (even with `tinycss2`).
 
 **No validation of conditional comments**. Not sure which library I can use here but at some point I'll likely need this as well.
 

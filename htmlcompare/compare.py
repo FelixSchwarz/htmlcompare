@@ -7,6 +7,8 @@ from collections import namedtuple
 
 import html5lib
 
+from .compare_css import compare_css
+
 
 __all__ = ['CompareResult', 'Difference', 'compare_html']
 
@@ -44,10 +46,10 @@ def is_equal(expected, actual):
         # items different somewhere other than attributes
         return False
 
-    # An omitted "style" attribute is equal to style=""
-    _e_style = _e_attrs.pop((None, 'style'), '').rstrip(';')
-    _a_style = _a_attrs.pop((None, 'style'), '').rstrip(';')
-    if _e_style != _a_style:
+    _e_style = _e_attrs.pop((None, 'style'), '')
+    _a_style = _a_attrs.pop((None, 'style'), '')
+    is_same_style = compare_css(_e_style, _a_style)
+    if not is_same_style:
         return False
     return (_e_attrs == _a_attrs)
 
