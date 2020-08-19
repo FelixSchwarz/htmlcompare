@@ -9,7 +9,7 @@ from .. import assert_different_html, assert_same_html
 from ..compare_css import has_tinycss
 
 
-class HTMLTest(TestCase):
+class HTMLStyleAttributeTest(TestCase):
     def test_can_ignore_empty_style_attribute(self):
         assert_different_html('<div style="color: red" />', '<div />')
         assert_same_html('<div style="" />', '<div />')
