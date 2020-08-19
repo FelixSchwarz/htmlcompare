@@ -56,3 +56,12 @@ class BasicTest(TestCase):
         with self.assertRaises(AssertionError, msg='check for stringification errors'):
             assert_same_html(expected_html, actual_html, verbose=False)
 
+    def test_can_ignore_whitespace_after_comment(self):
+        actual_html = '''<div>
+            <!-- comment with extra whitespace before next tag -->
+            
+            <b>foo</b>
+        </div>'''
+        expected_html = '<div><b>foo</b></div>'
+        assert_same_html(expected_html, actual_html)
+

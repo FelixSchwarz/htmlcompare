@@ -67,11 +67,9 @@ def compare_html(expected_html, actual_html):
     tags = []
     actual = list(actual_stream)
     for expected in expected_stream:
-        while actual and is_whitespace(actual[0]):
-            actual.pop(0)
         if is_whitespace(expected):
             continue
-        while actual and is_comment(actual[0]):
+        while actual and (is_whitespace(actual[0]) or is_comment(actual[0])):
             actual.pop(0)
 
         is_style_block = (expected['type'] == 'Characters') and tags and (tags[-1] == 'style')

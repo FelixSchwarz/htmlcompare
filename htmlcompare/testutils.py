@@ -20,6 +20,8 @@ def stringify_token(token):
         return '</%s>' % (token["name"], )
     elif token['type'] == 'Characters':
         return '%s' % token['data']
+    elif token['type'] == 'SpaceCharacters':
+        return '%r' % token['data']
     elif token['type'] == 'Comment':
         return '<!--%s-->' % token['data']
     raise NotImplementedError(token['type'])
