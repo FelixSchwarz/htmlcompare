@@ -20,6 +20,6 @@ class CommentsTest(TestCase):
         actual_html = '<div>foo<!-- baz --></div>'
         assert_same_html(expected_html, actual_html, verbose=False)
 
-        expected = '<div>foo</div>'
+        expected_html = '<div>foo</div>'
         assert_same_html(expected_html, actual_html, verbose=False)
 
