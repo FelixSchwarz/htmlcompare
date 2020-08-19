@@ -35,6 +35,11 @@ class BasicTest(TestCase):
         actual_html = '<div style="color: red" />'
         assert_different_html(expected_html, actual_html)
 
+    def test_ignores_attribute_ordering(self):
+        expected_html = '<div data-hidden="true" class="hidden" />'
+        actual_html = '<div class="hidden" data-hidden="true" />'
+        assert_same_html(expected_html, actual_html)
+
     def test_can_detect_missing_tag(self):
         expected_html = '<div><b>foo</b></div>'
         actual_html = '<div>foo</div>'

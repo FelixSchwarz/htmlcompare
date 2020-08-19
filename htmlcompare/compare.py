@@ -40,8 +40,14 @@ def is_equal(expected, actual):
 
     _e = expected.copy()
     _a = actual.copy()
-    _e_attrs = _e.pop('data').copy()
-    _a_attrs = _a.pop('data').copy()
+    # value in _e['data'] is OrderedDict (Python 3.7/htmllib 1.0.1). When
+    # comparing two OrderedDict instances ordering of keys does matter (*duh*)
+    # but it should not matter when comparing HTML.
+    # Creating a new "dict" instance does two things:
+    #  - copy attribute data (should be done anyway, do not modify inputs)
+    #  - convert OrderedDict to dict - for the latter ordering of keys does NOT matter
+    _e_attrs = dict(_e.pop('data'))
+    _a_attrs = dict(_a.pop('data'))
     if _e != _a:
         # items different somewhere other than attributes
         return False
