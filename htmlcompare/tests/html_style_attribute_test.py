@@ -3,7 +3,7 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from unittest.case import skipIf as skip_if, TestCase
+from unittest.case import skip, skipIf as skip_if, TestCase
 
 from .. import assert_different_html, assert_same_html
 from ..compare_css import has_tinycss
@@ -26,4 +26,8 @@ class HTMLStyleAttributeTest(TestCase):
         assert_same_html(
             '<div style="color: red; font-weight: bold" />',
             '<div style="font-weight:bold; color: red" />')
+
+    @skip('shorthand hex color matching not yet implemented')
+    def test_can_handle_shorthand_hex_colors(self):
+        assert_same_html('<div style="color: #f60" />', '<div style="color: #ff6600" />')
 
