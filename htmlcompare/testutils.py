@@ -26,7 +26,7 @@ def stringify_token(token):
         return '<!--%s-->' % token['data']
     raise NotImplementedError(token['type'])
 
-def assert_same_html(expected_html, actual_html, verbose=True):
+def assert_same_html(expected_html, actual_html, verbose=True, message=None):
     result = compare_html(expected_html, actual_html)
     if result:
         return
@@ -37,6 +37,8 @@ def assert_same_html(expected_html, actual_html, verbose=True):
         print('-' + expected_str)
         print('+' + actual_str)
     error_msg = '%s != %s' % (expected_str, actual_str)
+    if message is not None:
+        error_msg += message
     assert expected_str == actual_str, error_msg
 
 def assert_different_html(expected_html, actual_html):
