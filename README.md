@@ -22,6 +22,16 @@ assert_different_html('<br>', '<p>')
 assert_same_html('<div />', '<div></div>')
 ```
 
+Implemented Features
+----------------------
+
+- ignores whitespace between HTML tags
+- `<div />` is treated like `<div></div>`
+- inline style declarations are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter (Python 3.5+ only)
+
+(The feature list is incomplete. I just started it after implementing some features and I hope I can complete the list in the future. However you can expect at least the features mentioned above.)
+
+
 Limitations / Plans
 ----------------------
 **Only basic CSS support**. Declarations in `style` attributes are parsed with [tinycss2](https://github.com/Kozea/tinycss2) (Python 3.5+) so ordering of declarations and extra whitespace should not matter. `tinycss2` does not support Python 2 and 3.4 so the only help here is to strip trailing `;`s in `style` attributes. Contents of `<style>` tags are completely ignored for now (even with `tinycss2`).
