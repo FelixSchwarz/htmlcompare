@@ -27,6 +27,8 @@ Implemented Features
 
 - ignores whitespace between HTML tags
 - `<div />` is treated like `<div></div>`
+- ordering of CSS classes inside `class` attribute does not matter: `<div class="foo bar" />` is the same as `<div class="bar foo" />`.
+- a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
 - inline style declarations are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter (Python 3.5+ only)
 
 (The feature list is incomplete. I just started it after implementing some features and I hope I can complete the list in the future. However you can expect at least the features mentioned above.)

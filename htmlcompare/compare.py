@@ -4,6 +4,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 from collections import namedtuple
+import re
 
 import html5lib
 
@@ -57,6 +58,15 @@ def is_equal(expected, actual):
     is_same_style = compare_css(_e_style, _a_style)
     if not is_same_style:
         return False
+
+    _e_css_class = _e_attrs.pop((None, 'class'), '')
+    _a_css_class = _a_attrs.pop((None, 'class'), '')
+    e_css_classes = set(re.split('\s+', _e_css_class.strip()))
+    a_css_classes = set(re.split('\s+', _a_css_class.strip()))
+    has_same_css_classes = (e_css_classes == a_css_classes)
+    if not has_same_css_classes:
+        return False
+
     return (_e_attrs == _a_attrs)
 
 
