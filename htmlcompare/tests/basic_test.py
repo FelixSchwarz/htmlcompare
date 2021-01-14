@@ -35,6 +35,15 @@ class BasicTest(TestCase):
         actual_html = '<div style="color: red" />'
         assert_different_html(expected_html, actual_html)
 
+    def test_can_detect_missing_attribute(self):
+        # <img alt=""> has a different semantic meaning than <img> according
+        # to MDN:
+        #   https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-alt
+        # This test should ensure we never loose this feature.
+        expected_html = '<img alt="" />'
+        actual_html = '<img />'
+        assert_different_html(expected_html, actual_html)
+
     def test_ignores_attribute_ordering(self):
         expected_html = '<div data-hidden="true" class="hidden" />'
         actual_html = '<div class="hidden" data-hidden="true" />'
