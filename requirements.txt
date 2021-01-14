@@ -1,3 +1,0 @@
-html5lib
-# tinycss2 only supports Python 3.5+
-tinycss2 ; python_version >= '3.5'
