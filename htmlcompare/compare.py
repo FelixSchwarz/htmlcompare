@@ -61,8 +61,8 @@ def is_equal(expected, actual):
 
     _e_css_class = _e_attrs.pop((None, 'class'), '')
     _a_css_class = _a_attrs.pop((None, 'class'), '')
-    e_css_classes = set(re.split('\s+', _e_css_class.strip()))
-    a_css_classes = set(re.split('\s+', _a_css_class.strip()))
+    e_css_classes = set(re.split(r'\s+', _e_css_class.strip()))
+    a_css_classes = set(re.split(r'\s+', _a_css_class.strip()))
     has_same_css_classes = (e_css_classes == a_css_classes)
     if not has_same_css_classes:
         return False
