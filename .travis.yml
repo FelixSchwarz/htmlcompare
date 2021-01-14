@@ -13,7 +13,8 @@ python:
     - "pypy3"
 
 install:
-    - pip install nose
+    - pip install pytest
     - pip install -e .
 
-script: nosetests -s
+script:
+    - pytest
