@@ -27,7 +27,12 @@ class HTMLStyleAttributeTest(TestCase):
             '<div style="color: red; font-weight: bold" />',
             '<div style="font-weight:bold; color: red" />')
 
+    @skip_if(not has_tinycss, reason='test requires tinycss2')
+    def test_can_ignore_dimension_unit_if_value_is_0(self):
+        assert_same_html('<div style="width: 0px" />', '<div style="width: 0" />')
+        assert_same_html('<div style="width: 0px" />', '<div style="width: 0pt" />')
+        assert_different_html('<div style="width: 1px" />', '<div style="width: 1" />')
+
     @skip('shorthand hex color matching not yet implemented')
     def test_can_handle_shorthand_hex_colors(self):
         assert_same_html('<div style="color: #f60" />', '<div style="color: #ff6600" />')
-
