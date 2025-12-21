@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
-from __future__ import absolute_import, print_function, unicode_literals
-
-from unittest.case import skip, skipIf as skip_if, TestCase
+from unittest import skip, TestCase
 
 from .. import assert_different_html, assert_same_html
-from ..compare_css import has_tinycss
 
 
 class HTMLStyleAttributeTest(TestCase):
@@ -21,13 +17,11 @@ class HTMLStyleAttributeTest(TestCase):
         # also check "EmptyTag"
         assert_same_html('<img style="color: red;">', '<img style="color: red" >')
 
-    @skip_if(not has_tinycss, reason='test requires tinycss2')
     def test_ignores_ordering_of_style_declarations(self):
         assert_same_html(
             '<div style="color: red; font-weight: bold" />',
             '<div style="font-weight:bold; color: red" />')
 
-    @skip_if(not has_tinycss, reason='test requires tinycss2')
     def test_can_ignore_dimension_unit_if_value_is_0(self):
         assert_same_html('<div style="width: 0px" />', '<div style="width: 0" />')
         assert_same_html('<div style="width: 0px" />', '<div style="width: 0pt" />')

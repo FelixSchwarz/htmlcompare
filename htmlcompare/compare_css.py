@@ -1,29 +1,14 @@
-# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-
-from __future__ import absolute_import, print_function, unicode_literals
 
 from operator import attrgetter
 
-try:
-    import tinycss2
-    from tinycss2.ast import Declaration, NumberToken
-
-    has_tinycss = True
-except ImportError:
-    has_tinycss = False
+import tinycss2
+from tinycss2.ast import Declaration, NumberToken
 
 
 __all__ = ['compare_css']
 
 def compare_css(expected_css, actual_css):
-    if not has_tinycss:
-        # without tinycss we can not really do much
-        # An omitted "style" attribute is equal to style=""
-        _e_css = expected_css.rstrip(';')
-        _a_css = actual_css.rstrip(';')
-        return (_a_css == _e_css)
-
     _e_css = normalize_css(expected_css)
     _a_css = normalize_css(actual_css)
     _e_css_str = tinycss2.serialize(_e_css)

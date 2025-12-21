@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
-from __future__ import absolute_import, print_function, unicode_literals
-
-from unittest.case import TestCase
+from unittest import TestCase
 
 from .. import assert_different_html, assert_same_html
 

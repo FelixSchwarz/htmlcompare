@@ -37,7 +37,7 @@ Implemented Features
 
 Limitations / Plans
 ----------------------
-**Only basic CSS support**. Declarations in `style` attributes are parsed with [tinycss2](https://github.com/Kozea/tinycss2) (Python 3.5+) so ordering of declarations and extra whitespace should not matter. `tinycss2` does not support Python 2 and 3.4 so the only help here is to strip trailing `;`s in `style` attributes. Contents of `<style>` tags are completely ignored for now (even with `tinycss2`).
+**Only basic CSS support**. Declarations in `style` attributes are parsed with [tinycss2](https://github.com/Kozea/tinycss2) so ordering of declarations and extra whitespace should not matter. Contents of `<style>` tags are completely ignored for now (even with `tinycss2`).
 
 **No validation of conditional comments**. Not sure which library I can use here but at some point I'll likely need this as well.
 
@@ -55,6 +55,6 @@ Other projects
 
 Misc
 --------------
-The code is licensed under the MIT license. It supports Python 2.7 and Python 3.4+ though some features are only available for Python 3.5+.
+The code is licensed under the MIT license. It requires Python 3.9+.
 
 
