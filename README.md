@@ -9,7 +9,7 @@ Usage
 ```python
 import htmlcompare
 
-diff = htmlcompare.compare('<div>', '<p>')
+diff = htmlcompare.compare_html('<div>', '<p>')
 is_same = bool(diff)
 ```
 
