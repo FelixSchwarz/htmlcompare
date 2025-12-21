@@ -33,6 +33,7 @@ Implemented Features
 - a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
 - inline style declarations and `<style>` tags are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter
 - `0px` is considered equal to `0` in inline CSS.
+- conditional comments (`<!--[if !mso]>...`) are considered when checking for equality. Regular comments will be ignored by default.
 
 
 Limitations / Plans
