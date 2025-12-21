@@ -344,3 +344,70 @@ def test_style_extra_declaration_detected():
         '<div style="color: red; font-size: 12px;"></div>',
     )
     assert not result.is_equal
+
+
+def test_ignores_whitespace_between_block_elements():
+    expected = '''<html>
+        <body>
+            Foo bar
+        </body>
+    </html>'''
+    actual = '<html><body>Foo bar</body></html>'
+    assert compare_html2(expected, actual).is_equal
+
+
+def test_ignores_whitespace_around_nested_block_elements():
+    expected = '''<div>
+        <p>hello</p>
+        <p>world</p>
+    </div>'''
+    actual = '<div><p>hello</p><p>world</p></div>'
+    assert compare_html2(expected, actual).is_equal
+
+
+def test_ignores_leading_trailing_whitespace_in_block_text():
+    result = compare_html2(
+        '<div>  hello world  </div>',
+        '<div>hello world</div>',
+    )
+    assert result.is_equal
+
+
+def test_preserves_text_content_in_block():
+    result = compare_html2(
+        '<div>hello</div>',
+        '<div>world</div>',
+    )
+    assert not result.is_equal
+
+
+def test_detects_missing_space_between_inline_elements():
+    result = compare_html2(
+        'foo <b>bar</b>',
+        'foo<b>bar</b>',
+    )
+    assert not result.is_equal
+
+
+def test_detects_missing_space_in_text():
+    result = compare_html2(
+        '<p>hello world</p>',
+        '<p>helloworld</p>',
+    )
+    assert not result.is_equal
+
+
+def test_collapses_multiple_spaces():
+    # Multiple spaces collapse to one in HTML rendering
+    result = compare_html2(
+        '<p>hello   world</p>',
+        '<p>hello world</p>',
+    )
+    assert result.is_equal
+
+
+def test_preserves_space_around_inline_elements():
+    # assert_same_html('<p>a <b>b</b> c</p>', '<p>a <b>b</b> c</p>')
+    css = '<p>a <b>b</b> c</p>'
+    assert compare_html2(css, css).is_equal
+    assert not compare_html2(css, css.replace(' ', '')).is_equal

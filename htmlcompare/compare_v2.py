@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from htmlcompare.compare_css import compare_css
 from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
+from htmlcompare.normalize import normalize_tree
 from htmlcompare.parser import parse_html
 from htmlcompare.result import ComparisonResult, Difference, DifferenceType
 
@@ -15,12 +16,16 @@ def compare_html2(expected_html: str, actual_html: str) -> ComparisonResult:
     """
     Compare two HTML strings for equality.
 
-    This implementation uses a tree-based approach and currently
-    performs strict comparison without normalization.
+    This implementation uses a tree-based approach with normalization
+    to handle insignificant whitespace between block elements.
     """
     expected_tree = parse_html(expected_html)
     actual_tree = parse_html(actual_html)
-    return compare_trees(expected_tree, actual_tree)
+
+    # normalize trees to remove insignificant whitespace
+    expected_normalized = normalize_tree(expected_tree)
+    actual_normalized = normalize_tree(actual_tree)
+    return compare_trees(expected_normalized, actual_normalized)
 
 
 def compare_trees(expected: Document, actual: Document) -> ComparisonResult:
