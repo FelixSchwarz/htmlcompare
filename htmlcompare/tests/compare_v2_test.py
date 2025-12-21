@@ -93,6 +93,41 @@ def test_extra_attribute_detected():
     assert len(attr_diffs) >= 1
 
 
+def test_ignores_attribute_ordering():
+    result = compare_html2(
+        '<div data-hidden="true" class="hidden"></div>',
+        '<div class="hidden" data-hidden="true"></div>',
+    )
+    assert result.is_equal
+
+
+def test_ignores_attribute_ordering_multiple_attributes():
+    result = compare_html2(
+        '<div id="x" class="foo" data-value="1"></div>',
+        '<div data-value="1" id="x" class="foo"></div>',
+    )
+    assert result.is_equal
+
+
+def test_can_detect_different_attribute_value():
+    result = compare_html2(
+        '<div style="color: green"></div>',
+        '<div style="color: red"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_can_detect_missing_attribute_img_alt():
+    """<img alt=""> has different semantic meaning than <img>."""
+    result = compare_html2(
+        '<img alt="">',
+        '<img>',
+    )
+    assert not result.is_equal
+    attr_diffs = [d for d in result.differences if d.type == DifferenceType.ATTRIBUTE_MISSING]
+    assert len(attr_diffs) >= 1
+
+
 def test_extra_child_detected():
     result = compare_html2(
         '<div></div>',
