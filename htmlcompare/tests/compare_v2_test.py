@@ -2,6 +2,7 @@
 
 
 from htmlcompare.compare_v2 import compare_html2
+from htmlcompare.options import CompareOptions
 from htmlcompare.result import DifferenceType
 
 
@@ -224,9 +225,11 @@ def test_identical_comments_are_equal():
 
 
 def test_different_comments_detected():
+    opts = CompareOptions(ignore_comments=False)
     result = compare_html2(
         '<div><!-- comment a --></div>',
         '<div><!-- comment b --></div>',
+        options=opts,
     )
     assert not result.is_equal
     comment_diffs = [d for d in result.differences if d.type == DifferenceType.COMMENT_MISMATCH]
@@ -411,3 +414,57 @@ def test_preserves_space_around_inline_elements():
     css = '<p>a <b>b</b> c</p>'
     assert compare_html2(css, css).is_equal
     assert not compare_html2(css, css.replace(' ', '')).is_equal
+
+
+# --- Comment Handling ---
+
+def test_ignores_comments_by_default():
+    result = compare_html2(
+        '<div><!-- comment -->foo</div>',
+        '<div>foo</div>',
+    )
+    assert result.is_equal
+
+
+def test_ignores_comments_with_different_content_by_default():
+    result = compare_html2(
+        '<div><!-- comment A -->foo</div>',
+        '<div><!-- comment B -->foo</div>',
+    )
+    assert result.is_equal
+
+
+def test_compares_comments_when_ignore_comments_is_false():
+    result = compare_html2(
+        '<div><!-- same -->foo</div>',
+        '<div><!-- same -->foo</div>',
+        options=CompareOptions(ignore_comments=False),
+    )
+    assert result.is_equal
+
+
+def test_detects_different_comments_when_enabled():
+    result = compare_html2(
+        '<div><!-- a -->foo</div>',
+        '<div><!-- b -->foo</div>',
+        options=CompareOptions(ignore_comments=False),
+    )
+    assert not result.is_equal
+
+
+def test_detects_missing_comment_when_enabled():
+    result = compare_html2(
+        '<div><!-- comment -->foo</div>',
+        '<div>foo</div>',
+        options=CompareOptions(ignore_comments=False),
+    )
+    assert not result.is_equal
+
+
+def test_detects_extra_comment_when_enabled():
+    result = compare_html2(
+        '<div>foo</div>',
+        '<div><!-- comment -->foo</div>',
+        options=CompareOptions(ignore_comments=False),
+    )
+    assert not result.is_equal

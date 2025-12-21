@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from htmlcompare.compare_css import compare_css
 from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
 from htmlcompare.normalize import normalize_tree
+from htmlcompare.options import CompareOptions
 from htmlcompare.parser import parse_html
 from htmlcompare.result import ComparisonResult, Difference, DifferenceType
 
@@ -12,7 +13,11 @@ from htmlcompare.result import ComparisonResult, Difference, DifferenceType
 __all__ = ['compare_html2', 'compare_trees']
 
 
-def compare_html2(expected_html: str, actual_html: str) -> ComparisonResult:
+def compare_html2(
+    expected_html: str,
+    actual_html: str,
+    options: CompareOptions | None = None,
+) -> ComparisonResult:
     """
     Compare two HTML strings for equality.
 
@@ -23,8 +28,8 @@ def compare_html2(expected_html: str, actual_html: str) -> ComparisonResult:
     actual_tree = parse_html(actual_html)
 
     # normalize trees to remove insignificant whitespace
-    expected_normalized = normalize_tree(expected_tree)
-    actual_normalized = normalize_tree(actual_tree)
+    expected_normalized = normalize_tree(expected_tree, options)
+    actual_normalized = normalize_tree(actual_tree, options)
     return compare_trees(expected_normalized, actual_normalized)
 
 

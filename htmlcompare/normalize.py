@@ -4,21 +4,25 @@ import re
 
 from htmlcompare.elements import is_block_element
 from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
+from htmlcompare.options import CompareOptions
 
 
 __all__ = ['normalize_tree']
 
 _WHITESPACE_RE = re.compile(r'\s+')
+_DEFAULT_OPTIONS = CompareOptions()
 
 
-def normalize_tree(doc: Document) -> Document:
+def normalize_tree(doc: Document, options: CompareOptions | None = None) -> Document:
     """
     Normalize a document tree for comparison.
 
     This removes insignificant whitespace between block elements while
     preserving significant whitespace in inline contexts.
     """
-    normalized_children = _normalize_children(doc.children, in_block_context=True)
+    if options is None:
+        options = _DEFAULT_OPTIONS
+    normalized_children = _normalize_children(doc.children, in_block_context=True, options=options)
     return Document(children=normalized_children)
 
 
@@ -39,28 +43,29 @@ def _has_inline_elements(children: list[Node]) -> bool:
 def _normalize_children(
     children: list[Node],
     in_block_context: bool,
+    options: CompareOptions,
 ) -> list[Node]:
     result: list[Node] = []
     for child in children:
-        normalized = _normalize_node(child, in_block_context)
+        normalized = _normalize_node(child, in_block_context, options)
         if normalized is not None:
             result.append(normalized)
     return result
 
 
-def _normalize_node(node: Node, in_block_context: bool) -> Node | None:
+def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions) -> Node | None:
     """
     Normalize a single node.
 
-    Returns None if the node should be removed (whitespace-only text in block context).
+    Returns None if the node should be removed (whitespace-only text in block context,
+    or comments when ignore_comments is True).
     """
     if isinstance(node, TextNode):
         return _normalize_text_node(node, in_block_context)
     elif isinstance(node, Element):
-        return _normalize_element(node)
+        return _normalize_element(node, options)
     elif isinstance(node, Comment):
-        # Comments are preserved but don't affect whitespace
-        return node
+        return None if options.ignore_comments else node
     return node
 
 
@@ -92,7 +97,7 @@ def _normalize_text_node(node: TextNode, in_block_context: bool) -> TextNode | N
         return TextNode(content=normalized)
 
 
-def _normalize_element(element: Element) -> Element:
+def _normalize_element(element: Element, options: CompareOptions) -> Element:
     """Normalize an element and its children."""
     # Determine if children are in block context or inline context.
     # Whitespace is significant (inline context) if:
@@ -107,6 +112,7 @@ def _normalize_element(element: Element) -> Element:
     normalized_children = _normalize_children(
         element.children,
         in_block_context=children_in_block_context,
+        options=options,
     )
 
     return Element(
