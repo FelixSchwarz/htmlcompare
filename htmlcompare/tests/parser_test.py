@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 
+from typing import Optional
+
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, TextNode
 from htmlcompare.parser import parse_html as parse_html2
 
@@ -238,7 +240,7 @@ def test_regular_comment_not_parsed_as_conditional():
     assert comment.content == ' just a regular comment '
 
 
-def _find_first_child_with_tag(element: Element, tag: str) -> Element | None:
+def _find_first_child_with_tag(element: Element, tag: str) -> Optional[Element]:
     for child in element.children:
         if isinstance(child, Element) and child.tag == tag:
             return child

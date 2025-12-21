@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 
+from typing import Optional
+
 from htmlcompare.compare import compare_html
 from htmlcompare.options import CompareOptions
 from htmlcompare.result import ComparisonResult
@@ -12,8 +14,8 @@ def assert_same_html(
         expected_html: str,
         actual_html: str,
         verbose: bool = True,
-        message: str | None = None,
-        options: CompareOptions | None = None,
+        message: Optional[str] = None,
+        options: Optional[CompareOptions] = None,
     ) -> None:
     """Assert that two HTML strings are semantically equal."""
     result = compare_html(expected_html, actual_html, options)
@@ -34,7 +36,7 @@ def assert_same_html(
 def assert_different_html(
     expected_html: str,
     actual_html: str,
-    options: CompareOptions | None = None,
+    options: Optional[CompareOptions] = None,
 ) -> ComparisonResult:
     """Assert that two HTML strings are semantically different."""
     result = compare_html(expected_html, actual_html, options)

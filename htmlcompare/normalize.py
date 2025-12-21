@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 import re
+from typing import Optional
 
 from htmlcompare.elements import is_block_element
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
@@ -13,7 +14,7 @@ _WHITESPACE_RE = re.compile(r'\s+')
 _DEFAULT_OPTIONS = CompareOptions()
 
 
-def normalize_tree(doc: Document, options: CompareOptions | None = None) -> Document:
+def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> Document:
     """
     Normalize a document tree for comparison.
 
@@ -74,7 +75,7 @@ def _normalize_children(
     return result
 
 
-def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions) -> Node | None:
+def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions) -> Optional[Node]:
     """
     Normalize a single node.
 
@@ -92,7 +93,7 @@ def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions)
     return node
 
 
-def _normalize_text_node(node: TextNode, in_block_context: bool) -> TextNode | None:
+def _normalize_text_node(node: TextNode, in_block_context: bool) -> Optional[TextNode]:
     """
     Normalize a text node.
 
@@ -152,7 +153,7 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
 def _normalize_conditional_comment(
     node: ConditionalComment,
     options: CompareOptions,
-) -> ConditionalComment | None:
+) -> Optional[ConditionalComment]:
     """
     Normalize a conditional comment.
 

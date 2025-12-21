@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 from collections.abc import Sequence
+from typing import Optional
 
 from htmlcompare.compare_css import compare_css
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
@@ -16,7 +17,7 @@ __all__ = ['compare_html']
 def compare_html(
     expected_html: str,
     actual_html: str,
-    options: CompareOptions | None = None,
+    options: Optional[CompareOptions] = None,
 ) -> ComparisonResult:
     """
     Compare two HTML strings for equality.

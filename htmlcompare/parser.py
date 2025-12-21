@@ -3,6 +3,7 @@
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
+from typing import Optional, Union
 
 import html5lib
 
@@ -47,8 +48,8 @@ def _element_to_node(element) -> Element:
     return Element(tag=tag, attributes=attributes, children=children)
 
 
-def _convert_children(element) -> Sequence[Element | TextNode | Comment | ConditionalComment]:
-    children: list[Element | TextNode | Comment | ConditionalComment] = []
+def _convert_children(element) -> Sequence[Union[Element, TextNode, Comment, ConditionalComment]]:
+    children: list[Union[Element, TextNode, Comment, ConditionalComment]] = []
     if element.text:
         # leading text before any child elements
         children.append(TextNode(content=element.text))
@@ -75,7 +76,8 @@ def _is_comment(element) -> bool:
     return callable(element.tag) or element.tag == ET.Comment
 
 
-def _parse_conditional_comment(content: str) -> ConditionalComment | None:
+
+def _parse_conditional_comment(content: str) -> Optional[ConditionalComment]:
     """
     Parse an IE conditional comment if the content matches the pattern.
 

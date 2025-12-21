@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Union
 
 
 __all__ = ['Node', 'Element', 'TextNode', 'Comment', 'ConditionalComment', 'Document']
@@ -74,4 +75,4 @@ class Document:
 
 
 # Type alias for any node type
-Node = Element | TextNode | Comment | ConditionalComment
+Node = Union[Element, TextNode, Comment, ConditionalComment]
