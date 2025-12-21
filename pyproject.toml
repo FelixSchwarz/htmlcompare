@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.ruff]
+line-length = 100
+src = ["htmlcompare"]
+
+[tool.ruff.lint]
+ignore = [
+    # F403 "`from htmlcompare.compare import *` used; unable to detect undefined names"
+    "F403",
+]
+
+select = [
+    # Pyflakes
+    "F",
+    # Pycodestyle
+    "E",
+    "W",
+    # isort
+    "I001"
+]
+
+extend-select = [
+    "RUF100",  # unused noqa
+]
+
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["srw.billing"]
+known-local-folder = []
+combine-as-imports = true
