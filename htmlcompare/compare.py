@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Optional
 
-from htmlcompare.compare_css import compare_css
+from htmlcompare.compare_css import compare_css, compare_stylesheet
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
 from htmlcompare.normalize import normalize_tree
 from htmlcompare.options import CompareOptions
@@ -36,7 +36,7 @@ def compare_html(
 
 def _compare_trees(expected: Document, actual: Document) -> ComparisonResult:
     differences: list[Difference] = []
-    _compare_node_lists(expected.children, actual.children, "", differences)
+    _compare_node_lists(expected.children, actual.children, "", differences, parent_tag=None)
     _documents_are_equal = (len(differences) == 0)
     return ComparisonResult(is_equal=_documents_are_equal, differences=differences)
 
@@ -46,6 +46,8 @@ def _compare_node_lists(
     actual: Sequence[Node],
     path: str,
     differences: list[Difference],
+    *,
+    parent_tag: Optional[str] = None,
 ) -> None:
     max_len = max(len(expected), len(actual))
 
@@ -76,7 +78,7 @@ def _compare_node_lists(
             ))
             continue
 
-        _compare_nodes(expected[i], actual[i], child_path, differences)
+        _compare_nodes(expected[i], actual[i], child_path, differences, parent_tag=parent_tag)
 
 
 def _compare_nodes(
@@ -84,6 +86,8 @@ def _compare_nodes(
     actual: Node,
     path: str,
     differences: list[Difference],
+    *,
+    parent_tag: Optional[str] = None,
 ) -> None:
     if type(expected) is not type(actual):
         differences.append(Difference(
@@ -99,7 +103,7 @@ def _compare_nodes(
         _compare_elements(expected, actual, path, differences)
     elif isinstance(expected, TextNode):
         assert isinstance(actual, TextNode)
-        _compare_text_nodes(expected, actual, path, differences)
+        _compare_text_nodes(expected, actual, path, differences, parent_tag=parent_tag)
     elif isinstance(expected, Comment):
         assert isinstance(actual, Comment)
         _compare_comments(expected, actual, path, differences)
@@ -127,8 +131,14 @@ def _compare_elements(
         return  # don't compare children if tags differ
 
     _compare_attributes(expected.attributes, actual.attributes, element_path, differences)
-    # compare children
-    _compare_node_lists(expected.children, actual.children, element_path, differences)
+    # compare children, passing tag name for context-aware comparison (e.g., CSS in <style> tags)
+    _compare_node_lists(
+        expected.children,
+        actual.children,
+        element_path,
+        differences,
+        parent_tag=expected.tag,
+    )
 
 
 def _compare_attributes(
@@ -241,7 +251,20 @@ def _compare_text_nodes(
     actual: TextNode,
     path: str,
     differences: list[Difference],
+    *,
+    parent_tag: Optional[str] = None,
 ) -> None:
+    if parent_tag == 'style':
+        if compare_stylesheet(expected.content, actual.content):
+            return  # CSS is semantically equivalent
+        differences.append(Difference(
+            type=DifferenceType.TEXT_MISMATCH,
+            path=path,
+            expected=expected.content,
+            actual=actual.content,
+        ))
+        return
+
     if expected.content != actual.content:
         differences.append(Difference(
             type=DifferenceType.TEXT_MISMATCH,

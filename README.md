@@ -31,14 +31,12 @@ Implemented Features
 - HTML comments are ignored (yes, also [conditional comments](https://en.wikipedia.org/wiki/Conditional_comment) unfortunately)
 - ordering of CSS classes inside `class` attribute does not matter: `<div class="foo bar" />` is the same as `<div class="bar foo" />`.
 - a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
-- inline style declarations are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter (Python 3.5+ only)
+- inline style declarations and `<style>` tags are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter
 - `0px` is considered equal to `0` in inline CSS.
 
 
 Limitations / Plans
 ----------------------
-**Only basic CSS support**. Declarations in `style` attributes are parsed with [tinycss2](https://github.com/Kozea/tinycss2) so ordering of declarations and extra whitespace should not matter. Contents of `<style>` tags are completely ignored for now (even with `tinycss2`).
-
 **No validation of conditional comments**. Not sure which library I can use here but at some point I'll likely need this as well.
 
 **JavaScript** - for obvious reasons it will be impossible to implement perfect JS comparison but it might be possible to run some kind of "beautifier" to take care of insignificant stylistic changes. However I don't need this feature so this is unlikely to get implemented (unless contributed by someone else).

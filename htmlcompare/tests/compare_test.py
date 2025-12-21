@@ -566,3 +566,46 @@ def test_ignores_regular_comments_but_compares_conditional_by_default():
         '<div><!-- regular B --><!--[if IE]><p>new</p><![endif]--></div>',
     )
     assert not result.is_equal
+
+
+# --- Style Tag CSS Normalization Tests ---
+
+def test_style_tag_ignores_css_whitespace_differences():
+    """CSS inside <style> tags should be compared semantically, not as strings."""
+    result = compare_html(
+        '<style>body { margin: 0; padding: 0; }</style>',
+        '<style>body { margin:0;padding:0; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_actual_css_differences():
+    result = compare_html(
+        '<style>body { margin: 0; }</style>',
+        '<style>body { margin: 10px; }</style>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_declaration_order():
+    result = compare_html(
+        '<style>.foo { color: red; font-size: 12px; }</style>',
+        '<style>.foo { font-size: 12px; color: red; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_ignores_unit_for_zero_values():
+    result = compare_html(
+        '<style>body { margin: 0px; }</style>',
+        '<style>body { margin: 0; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_with_multiple_selectors():
+    result = compare_html(
+        '<style>#outlook a { padding: 0; } body { margin: 0; }</style>',
+        '<style>#outlook a { padding:0; } body { margin:0; }</style>',
+    )
+    assert result.is_equal
