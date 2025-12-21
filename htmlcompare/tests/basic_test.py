@@ -5,6 +5,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 from unittest.case import TestCase
 
+import pytest
+
 from .. import assert_different_html, assert_same_html
 
 
@@ -79,3 +81,9 @@ class BasicTest(TestCase):
         expected_html = '<div><b>foo</b></div>'
         assert_same_html(expected_html, actual_html)
 
+
+@pytest.mark.xfail(reason="current implementation does not track whitespace well enough")
+def test_can_detect_different_comment_content(self):
+    expected_html = 'foo <b>bar</b>'
+    actual_html = 'foo<b>bar</b>'
+    assert_different_html(expected_html, actual_html)
