@@ -25,6 +25,12 @@ BLOCK_ELEMENTS = frozenset({
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     # Metadata (typically not rendered)
     'base', 'link', 'meta', 'noscript', 'script', 'style', 'template', 'title',
+    # VML elements (used in Outlook conditional comments)
+    'v:image', 'v:rect', 'v:fill', 'v:stroke', 'v:textbox', 'v:shape',
+    'v:shapetype', 'v:roundrect', 'v:oval', 'v:line', 'v:polyline',
+    'v:group', 'v:background',
+    # Microsoft Office elements
+    'o:p', 'o:wrapblock',
 })
 
 # Inline elements where whitespace is significant for rendering.

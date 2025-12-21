@@ -625,3 +625,23 @@ def test_style_tag_detects_different_media_query_content():
         '<style>@media screen { .foo { width: 50%; } }</style>',
     )
     assert not result.is_equal
+
+
+# --- Conditional Comment Tests ---
+
+def test_conditional_comment_ignores_whitespace_inside_nested_block_elements():
+    """Whitespace inside nested block elements in conditional comments should be ignored.
+
+    When content inside a conditional comment is formatted with indentation and newlines,
+    html5lib parses these as TextNode children of the elements. For block-level elements
+    like table/tr/td, this whitespace is semantically insignificant and should be ignored.
+    """
+    multi_line = '''<div><!--[if mso | IE]>
+                <table>
+                    <tr>
+                        <td>
+                            <v:image src="test.jpg" />
+            <![endif]--></div>'''
+    single_line = '<div><!--[if mso | IE]><table><tr><td><v:image src="test.jpg" /><![endif]--></div>'  # noqa: E501
+    result = compare_html(multi_line, single_line)
+    assert result.is_equal
