@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+from htmlcompare.compare_css import compare_css
 from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
 from htmlcompare.parser import parse_html
 from htmlcompare.result import ComparisonResult, Difference, DifferenceType
@@ -146,6 +147,10 @@ def _compare_attributes(
             _compare_class_attribute(
                 expected_normalized[key], actual_normalized[key], path, differences
             )
+        elif key == 'style':
+            _compare_style_attribute(
+                expected_normalized[key], actual_normalized[key], path, differences
+            )
         elif expected_normalized[key] != actual_normalized[key]:
             differences.append(Difference(
                 type=DifferenceType.ATTRIBUTE_MISMATCH,
@@ -156,11 +161,14 @@ def _compare_attributes(
 
 
 def _normalize_attributes(attrs: dict[str, str]) -> dict[str, str]:
-    """Normalize attributes, removing empty class attributes."""
+    """Normalize attributes, removing empty class/style attributes."""
     result = {}
     for key, value in attrs.items():
         # an empty class attribute is same as absent
         if key == 'class' and not value.strip():
+            continue
+        # an empty style attribute is same as absent
+        if key == 'style' and not value.strip():
             continue
         result[key] = value
     return result
@@ -194,6 +202,24 @@ def _compare_class_attribute(
             actual=sorted(extra),
             message=f"unexpected classes: {sorted(extra)}",
         ))
+
+
+def _compare_style_attribute(
+    expected: str,
+    actual: str,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    """Compare style attributes using CSS-aware comparison."""
+    if compare_css(expected, actual):
+        return  # styles are equivalent
+
+    differences.append(Difference(
+        type=DifferenceType.STYLE_MISMATCH,
+        path=f"{path}@style",
+        expected=expected,
+        actual=actual,
+    ))
 
 
 def _compare_text_nodes(

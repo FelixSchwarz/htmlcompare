@@ -273,3 +273,74 @@ def test_difference_str_includes_values():
     diff_str = str(text_diffs[0])
     assert 'expected' in diff_str
     assert 'actual' in diff_str
+
+
+def test_identical_style_attributes():
+    css = '<div style="color: red;"></div>'
+    assert compare_html2(css, css).is_equal
+
+
+def test_style_declarations_order_independent():
+    result = compare_html2(
+        '<div style="color: red; font-weight: bold;"></div>',
+        '<div style="font-weight: bold; color: red;"></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_whitespace_irrelevant():
+    result = compare_html2(
+        '<div style="color:red;font-weight:bold"></div>',
+        '<div style="color: red; font-weight: bold;"></div>',
+    )
+    assert result.is_equal
+
+
+def test_treats_absent_style_same_as_empty_style():
+    result = compare_html2(
+        '<div style=""></div>',
+        '<div></div>',
+    )
+    assert result.is_equal
+
+
+def test_treats_whitespace_only_style_same_as_absent():
+    result = compare_html2(
+        '<div style="  "></div>',
+        '<div></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_zero_with_and_without_unit():
+    result = compare_html2(
+        '<div style="width: 0px;"></div>',
+        '<div style="width: 0;"></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_mismatch_detected():
+    result = compare_html2(
+        '<div style="color: red;"></div>',
+        '<div style="color: blue;"></div>',
+    )
+    assert not result.is_equal
+    style_diffs = [d for d in result.differences if d.type == DifferenceType.STYLE_MISMATCH]
+    assert len(style_diffs) == 1
+
+
+def test_style_missing_declaration_detected():
+    result = compare_html2(
+        '<div style="color: red; font-size: 12px;"></div>',
+        '<div style="color: red;"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_style_extra_declaration_detected():
+    result = compare_html2(
+        '<div style="color: red;"></div>',
+        '<div style="color: red; font-size: 12px;"></div>',
+    )
+    assert not result.is_equal

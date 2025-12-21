@@ -17,6 +17,7 @@ class DifferenceType(Enum):
     ATTRIBUTE_EXTRA = auto()
     CLASS_MISSING = auto()
     CLASS_EXTRA = auto()
+    STYLE_MISMATCH = auto()
     CHILD_COUNT_MISMATCH = auto()
     CHILD_MISSING = auto()
     CHILD_EXTRA = auto()
