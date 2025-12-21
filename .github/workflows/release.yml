@@ -1,0 +1,55 @@
+name: Create Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Build wheel
+        run: |
+          uv venv venv-test
+          . venv-test/bin/activate
+          uv build --wheel --sdist
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "dist/*"
+
+      - name: upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "release-artifacts"
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Prepare release metadata
+        run: |
+          echo "TAG_NAME=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_NAME }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
