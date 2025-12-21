@@ -1,45 +1,43 @@
 # SPDX-License-Identifier: MIT
 
-from . import compare_html
+from htmlcompare.compare import compare_html
+from htmlcompare.options import CompareOptions
+from htmlcompare.result import ComparisonResult
 
 
 __all__ = ['assert_different_html', 'assert_same_html']
 
-def stringify_token(token):
-    if token['type'] in ('StartTag', 'EmptyTag'):
-        attrs = []
-        for attr_key, attr_value in token['data'].items():
-            ns, key = attr_key
-            attrs.append('%s="%s"' % (key, attr_value))
-        attr_str = (' ' if attrs else '') + ' '.join(attrs)
-        return '<%s%s>' % (token["name"], attr_str)
-    elif token['type'] == 'EndTag':
-        return '</%s>' % (token["name"], )
-    elif token['type'] == 'Characters':
-        return '%s' % token['data']
-    elif token['type'] == 'SpaceCharacters':
-        return '%r' % token['data']
-    elif token['type'] == 'Comment':
-        return '<!--%s-->' % token['data']
-    raise NotImplementedError(token['type'])
 
-def assert_same_html(expected_html, actual_html, verbose=True, message=None):
-    result = compare_html(expected_html, actual_html)
+def assert_same_html(
+        expected_html: str,
+        actual_html: str,
+        verbose: bool = True,
+        message: str | None = None,
+        options: CompareOptions | None = None,
+    ) -> None:
+    """Assert that two HTML strings are semantically equal."""
+    result = compare_html(expected_html, actual_html, options)
     if result:
         return
-    diff = result.differences[0]
-    expected_str = stringify_token(diff.expected)
-    actual_str = stringify_token(diff.actual)
-    if verbose:
-        print('-' + expected_str)
-        print('+' + actual_str)
-    error_msg = '%s != %s' % (expected_str, actual_str)
-    if message is not None:
-        error_msg += message
-    assert expected_str == actual_str, error_msg
 
-def assert_different_html(expected_html, actual_html):
-    result = compare_html(expected_html, actual_html)
+    diff = result.differences[0]
+    if verbose:
+        print(f'-expected: {diff.expected!r}')
+        print(f'+actual:   {diff.actual!r}')
+
+    error_msg = str(diff)
+    if message is not None:
+        error_msg += ' ' + message
+    raise AssertionError(error_msg)
+
+
+def assert_different_html(
+    expected_html: str,
+    actual_html: str,
+    options: CompareOptions | None = None,
+) -> ComparisonResult:
+    """Assert that two HTML strings are semantically different."""
+    result = compare_html(expected_html, actual_html, options)
     if not result:
         return result
     raise AssertionError('expected different HTML but DOM is the same')

@@ -26,16 +26,37 @@ def normalize_tree(doc: Document, options: CompareOptions | None = None) -> Docu
     return Document(children=normalized_children)
 
 
-def _has_inline_elements(children: list[Node]) -> bool:
+def _has_inline_elements(children: list[Node], options: CompareOptions) -> bool:
     """
     Check if children list contains inline elements.
 
     This determines whether whitespace between text nodes and inline elements
     is significant. If there are inline elements, spaces around them matter.
+
+    Note: This checks what will remain AFTER normalization (comments removed).
     """
     for child in children:
+        # skip comments that will be removed
+        if isinstance(child, Comment) and options.ignore_comments:
+            continue
+        if isinstance(child, ConditionalComment) and options.ignore_conditional_comments:
+            continue
         if isinstance(child, Element):
             if not is_block_element(child.tag):
+                return True
+    return False
+
+
+def _has_significant_text(children: list[Node], options: CompareOptions) -> bool:
+    """
+    Check if children list contains non-whitespace text content.
+
+    This helps determine if whitespace is significant: if there's text
+    mixed with inline elements, whitespace between them matters.
+    """
+    for child in children:
+        if isinstance(child, TextNode):
+            if child.content.strip():
                 return True
     return False
 
@@ -104,12 +125,16 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
     # Determine if children are in block context or inline context.
     # Whitespace is significant (inline context) if:
     # 1. The element is inline (not a block element)
-    # 2. OR the element contains inline elements as children
+    # 2. OR the element contains inline elements AND significant text as children
     #
-    # If a block element contains only text (no inline elements),
-    # we can strip leading/trailing whitespace.
-    has_inline_children = _has_inline_elements(element.children)
-    children_in_block_context = is_block_element(element.tag) and not has_inline_children
+    # If a block element contains only inline elements (no text), or only text
+    # (no inline elements), we can strip leading/trailing whitespace.
+    # Whitespace only matters when text is ADJACENT to inline elements.
+    has_inline_children = _has_inline_elements(element.children, options)
+    has_text_content = _has_significant_text(element.children, options)
+    # Whitespace is significant only when there's both inline elements AND text
+    inline_context = has_inline_children and has_text_content
+    children_in_block_context = is_block_element(element.tag) and not inline_context
 
     normalized_children = _normalize_children(
         element.children,
