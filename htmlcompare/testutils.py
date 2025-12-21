@@ -43,4 +43,3 @@ def assert_different_html(expected_html, actual_html):
     if not result:
         return result
     raise AssertionError('expected different HTML but DOM is the same')
-

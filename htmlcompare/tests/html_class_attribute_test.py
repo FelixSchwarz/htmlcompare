@@ -22,4 +22,3 @@ class HTMLClassAttributeTest(TestCase):
         assert_same_html('<div class="" />', '<div />')
         # also add a tab to ensure the code covers different types of whitespace
         assert_same_html('<div class="  	  " />', '<div />')
-

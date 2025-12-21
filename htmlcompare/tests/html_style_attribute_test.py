@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-from unittest import skip, TestCase
+from unittest import TestCase, skip
 
 from .. import assert_different_html, assert_same_html
 

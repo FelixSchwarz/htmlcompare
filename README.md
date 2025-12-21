@@ -56,5 +56,3 @@ Other projects
 Misc
 --------------
 The code is licensed under the MIT license. It requires Python 3.9+.
-
-

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 
-from collections import namedtuple
 import re
+from collections import namedtuple
 
 import html5lib
 
@@ -122,4 +122,3 @@ def compare_html(expected_html, actual_html):
 
     is_same = not bool(differences)
     return CompareResult(is_same, differences=differences)
-

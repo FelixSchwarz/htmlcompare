@@ -22,4 +22,3 @@ def htmlcompare_cli():
         raise
         sys.exit(10)
     print('HTML in both files is the same. :-)')
-

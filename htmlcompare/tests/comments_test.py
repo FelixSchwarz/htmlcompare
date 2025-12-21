@@ -19,4 +19,3 @@ class CommentsTest(TestCase):
 
         expected_html = '<div>foo</div>'
         assert_same_html(expected_html, actual_html, verbose=False)
-

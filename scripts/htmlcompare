@@ -4,4 +4,3 @@ from htmlcompare.cli import htmlcompare_cli
 
 if __name__ == '__main__':
     htmlcompare_cli()
-

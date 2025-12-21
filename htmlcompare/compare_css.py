@@ -34,13 +34,22 @@ def _strip_zero_units(all_tokens):
     tokens = []
     for token in all_tokens:
         if is_dimension(token) and token.int_value == 0:
-            token = NumberToken(token.source_line, token.source_column, token.value, token.int_value, token.representation)
+            token = NumberToken(
+                token.source_line,
+                token.source_column,
+                token.value,
+                token.int_value,
+                token.representation,
+            )
         tokens.append(token)
     return tokens
 
 def normalize_css(css_declaration_str):
     _decls = []
-    for decl in tinycss2.parse_declaration_list(css_declaration_str, skip_comments=True, skip_whitespace=True):
+    _css_decls = tinycss2.parse_declaration_list(
+        css_declaration_str, skip_comments=True, skip_whitespace=True
+    )
+    for decl in _css_decls:
         assert (decl.type == 'declaration'), decl
         tokens = _strip_whitespace(decl.value)
         tokens = _strip_zero_units(tokens)
@@ -56,4 +65,3 @@ def normalize_css(css_declaration_str):
 
     sorted_decls = sorted(_decls, key=attrgetter('name'))
     return tuple(sorted_decls)
-

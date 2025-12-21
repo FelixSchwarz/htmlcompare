@@ -1,4 +1,3 @@
 
-from .compare import *
-from .testutils import *
-
+from htmlcompare.compare import *
+from htmlcompare.testutils import *
