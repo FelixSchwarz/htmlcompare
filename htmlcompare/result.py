@@ -23,6 +23,8 @@ class DifferenceType(Enum):
     CHILD_EXTRA = auto()
     NODE_TYPE_MISMATCH = auto()
     COMMENT_MISMATCH = auto()
+    CONDITIONAL_COMMENT_CONDITION_MISMATCH = auto()
+    CONDITIONAL_COMMENT_CONTENT_MISMATCH = auto()
 
 
 @dataclass

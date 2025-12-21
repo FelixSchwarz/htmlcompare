@@ -468,3 +468,55 @@ def test_detects_extra_comment_when_enabled():
         options=CompareOptions(ignore_comments=False),
     )
     assert not result.is_equal
+
+
+# --- Conditional Comment Comparison ---
+
+def test_compares_conditional_comments_by_default():
+    # Conditional comments should be compared by default (unlike regular comments)
+    result = compare_html2(
+        '<div><!--[if IE]><p>old</p><![endif]--></div>',
+        '<div><!--[if IE]><p>new</p><![endif]--></div>',
+    )
+    assert not result.is_equal
+
+
+def test_same_conditional_comments_are_equal():
+    comment = '<div><!--[if IE]><p>same</p><![endif]--></div>'
+    assert compare_html2(comment, comment).is_equal
+
+
+def test_different_conditional_comment_conditions_detected():
+    result = compare_html2(
+        '<div><!--[if IE]><p>x</p><![endif]--></div>',
+        '<div><!--[if lt IE 9]><p>x</p><![endif]--></div>',
+    )
+    assert not result.is_equal
+
+
+def test_can_ignore_conditional_comments_when_option_set():
+    opts = CompareOptions(ignore_conditional_comments=True)
+
+    result = compare_html2(
+        '<div><!--[if IE]><p>old</p><![endif]--></div>',
+        '<div><!--[if IE]><p>new</p><![endif]--></div>',
+        options=opts,
+    )
+    assert result.is_equal
+
+
+def test_ignores_regular_comments_but_compares_conditional_by_default():
+    # Default: ignore_comments=True, ignore_conditional_comments=False
+    # Regular comment difference should be ignored
+    result = compare_html2(
+        '<div><!-- regular A --><!--[if IE]><p>same</p><![endif]--></div>',
+        '<div><!-- regular B --><!--[if IE]><p>same</p><![endif]--></div>',
+    )
+    assert result.is_equal
+
+    # Conditional comment difference should be detected
+    result = compare_html2(
+        '<div><!-- regular A --><!--[if IE]><p>old</p><![endif]--></div>',
+        '<div><!-- regular B --><!--[if IE]><p>new</p><![endif]--></div>',
+    )
+    assert not result.is_equal

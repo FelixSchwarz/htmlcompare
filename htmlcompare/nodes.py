@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 
-__all__ = ['Node', 'Element', 'TextNode', 'Comment', 'Document']
+__all__ = ['Node', 'Element', 'TextNode', 'Comment', 'ConditionalComment', 'Document']
 
 
 @dataclass
@@ -27,6 +27,22 @@ class Comment:
         if not isinstance(other, Comment):
             return NotImplemented
         return self.content == other.content
+
+
+@dataclass(frozen=True)
+class ConditionalComment:
+    """
+    Represents an IE conditional comment.
+
+    Example: <!--[if IE]><p>IE only</p><![endif]-->
+    """
+    condition: str  # e.g., "IE", "lt IE 9", "gte IE 8"
+    children: list['Node'] = field(default_factory=list)
+
+    def __eq__(self, other):
+        if not isinstance(other, ConditionalComment):
+            return NotImplemented
+        return self.condition == other.condition and self.children == other.children
 
 
 @dataclass
@@ -58,4 +74,4 @@ class Document:
 
 
 # Type alias for any node type
-Node = Element | TextNode | Comment
+Node = Element | TextNode | Comment | ConditionalComment

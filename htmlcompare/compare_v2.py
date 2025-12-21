@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from htmlcompare.compare_css import compare_css
-from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
+from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
 from htmlcompare.normalize import normalize_tree
 from htmlcompare.options import CompareOptions
 from htmlcompare.parser import parse_html
@@ -102,6 +102,9 @@ def _compare_nodes(
     elif isinstance(expected, Comment):
         assert isinstance(actual, Comment)
         _compare_comments(expected, actual, path, differences)
+    elif isinstance(expected, ConditionalComment):
+        assert isinstance(actual, ConditionalComment)
+        _compare_conditional_comments(expected, actual, path, differences)
 
 
 def _compare_elements(
@@ -262,6 +265,28 @@ def _compare_comments(
         ))
 
 
+def _compare_conditional_comments(
+    expected: ConditionalComment,
+    actual: ConditionalComment,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    cc_path = f"{path} > <!--[if {expected.condition}]>" if path else f"<!--[if {expected.condition}]>"  # noqa: E501
+
+    # Compare conditions
+    if expected.condition != actual.condition:
+        differences.append(Difference(
+            type=DifferenceType.CONDITIONAL_COMMENT_CONDITION_MISMATCH,
+            path=cc_path,
+            expected=expected.condition,
+            actual=actual.condition,
+        ))
+        return  # don't compare children if conditions differ
+
+    # Compare children
+    _compare_node_lists(expected.children, actual.children, cc_path, differences)
+
+
 def _node_summary(node: Node) -> str:
     if isinstance(node, Element):
         return f"<{node.tag}>"
@@ -271,4 +296,6 @@ def _node_summary(node: Node) -> str:
     elif isinstance(node, Comment):
         content = node.content[:20] + "..." if len(node.content) > 20 else node.content
         return f"comment({content!r})"
+    elif isinstance(node, ConditionalComment):
+        return f"<!--[if {node.condition}]>..."
     return str(type(node).__name__)

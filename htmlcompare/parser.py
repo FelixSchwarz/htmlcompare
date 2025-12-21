@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: MIT
 
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 
 import html5lib
 
-from htmlcompare.nodes import Comment, Document, Element, TextNode
+from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, TextNode
 
 
 __all__ = ['parse_html']
+
+
+_CONDITIONAL_START_RE = re.compile(r'^\[if\s+([^\]]+)\]>')
+_CONDITIONAL_END_RE = re.compile(r'<!\[endif\]$')
 
 
 def parse_html(html_string: str) -> Document:
@@ -42,14 +47,19 @@ def _element_to_node(element) -> Element:
     return Element(tag=tag, attributes=attributes, children=children)
 
 
-def _convert_children(element) -> Sequence[Element | TextNode | Comment]:
-    children: list[Element | TextNode | Comment] = []
+def _convert_children(element) -> Sequence[Element | TextNode | Comment | ConditionalComment]:
+    children: list[Element | TextNode | Comment | ConditionalComment] = []
     if element.text:
         # leading text before any child elements
         children.append(TextNode(content=element.text))
     for child in element:
         if _is_comment(child):
-            children.append(Comment(content=child.text or ''))
+            comment_content = child.text or ''
+            conditional = _parse_conditional_comment(comment_content)
+            if conditional is not None:
+                children.append(conditional)
+            else:
+                children.append(Comment(content=comment_content))
         else:
             # regular element
             node = _element_to_node(child)
@@ -63,3 +73,36 @@ def _convert_children(element) -> Sequence[Element | TextNode | Comment]:
 def _is_comment(element) -> bool:
     # html5lib represents comments with a special function tag
     return callable(element.tag) or element.tag == ET.Comment
+
+
+def _parse_conditional_comment(content: str) -> ConditionalComment | None:
+    """
+    Parse an IE conditional comment if the content matches the pattern.
+
+    Returns a ConditionalComment node if the content is a conditional comment,
+    otherwise returns None.
+    """
+    start_match = _CONDITIONAL_START_RE.match(content)
+    end_match = _CONDITIONAL_END_RE.search(content)
+    if not (start_match and end_match):
+        return None
+
+    condition = start_match.group(1).strip()
+    # extract the HTML content between the condition and the endif
+    inner_html = content[start_match.end():end_match.start()]
+    inner_doc = parse_html(inner_html)
+    # The inner HTML gets wrapped in html/head/body, extract the body children
+    inner_children = _extract_body_children(inner_doc)
+    return ConditionalComment(condition=condition, children=inner_children)
+
+
+def _extract_body_children(doc: Document) -> list:
+    if not doc.children:
+        return []
+    html_elem = doc.children[0]
+    if not isinstance(html_elem, Element) or html_elem.tag != 'html':
+        return []
+    for child in html_elem.children:
+        if isinstance(child, Element) and child.tag == 'body':
+            return list(child.children)
+    return []

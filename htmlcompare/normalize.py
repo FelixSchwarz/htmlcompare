@@ -3,7 +3,7 @@
 import re
 
 from htmlcompare.elements import is_block_element
-from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
+from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
 from htmlcompare.options import CompareOptions
 
 
@@ -66,6 +66,8 @@ def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions)
         return _normalize_element(node, options)
     elif isinstance(node, Comment):
         return None if options.ignore_comments else node
+    elif isinstance(node, ConditionalComment):
+        return _normalize_conditional_comment(node, options)
     return node
 
 
@@ -118,5 +120,28 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
     return Element(
         tag=element.tag,
         attributes=element.attributes,
+        children=normalized_children,
+    )
+
+
+def _normalize_conditional_comment(
+    node: ConditionalComment,
+    options: CompareOptions,
+) -> ConditionalComment | None:
+    """
+    Normalize a conditional comment.
+
+    Conditional comments are compared by default, unlike regular comments.
+    They are only removed when ignore_conditional_comments is True.
+    """
+    if options.ignore_conditional_comments:
+        return None
+    normalized_children = _normalize_children(
+        node.children,
+        in_block_context=True,
+        options=options,
+    )
+    return ConditionalComment(
+        condition=node.condition,
         children=normalized_children,
     )

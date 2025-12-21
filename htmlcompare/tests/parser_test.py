@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-from htmlcompare.nodes import Comment, Document, Element, TextNode
+from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, TextNode
 from htmlcompare.parser import parse_html as parse_html2
 
 
@@ -191,6 +191,51 @@ def test_parse_style_tag_content():
     style = _find_first_child_with_tag(head, 'style')
     assert style is not None
     assert style.children == [TextNode('.foo { color: red; }')]
+
+
+def test_parses_conditional_comment():
+    doc = parse_html2('<div><!--[if IE]><p>IE only</p><![endif]--></div>')
+    html, = doc.children
+    body = _find_first_child_with_tag(html, 'body')
+    div = _find_first_child_with_tag(body, 'div')
+    assert len(div.children) == 1
+    cc, = div.children
+    assert isinstance(cc, ConditionalComment)
+    assert cc.condition == 'IE'
+    # Children should contain the <p> element
+    p, = cc.children
+    assert isinstance(p, Element)
+    assert p.tag == 'p'
+
+
+def test_parses_conditional_comment_with_comparison():
+    doc = parse_html2("<div><!--[if lt IE 9]><script src='ie8.js'></script><![endif]--></div>")
+    html, = doc.children
+    body = _find_first_child_with_tag(html, 'body')
+    div = _find_first_child_with_tag(body, 'div')
+    cc, = div.children
+    assert isinstance(cc, ConditionalComment)
+    assert cc.condition == 'lt IE 9'
+
+
+def test_parses_conditional_comment_gte():
+    doc = parse_html2('<head><!--[if gte IE 8]><link rel="stylesheet" href="ie8.css"><![endif]--></head>')  # noqa: E501
+    html, = doc.children
+    head = _find_first_child_with_tag(html, 'head')
+    assert len(head.children) >= 1
+    cc, = head.children
+    assert isinstance(cc, ConditionalComment)
+    assert cc.condition == 'gte IE 8'
+
+
+def test_regular_comment_not_parsed_as_conditional():
+    doc = parse_html2('<div><!-- just a regular comment --></div>')
+    html = doc.children[0]
+    body = _find_first_child_with_tag(html, 'body')
+    div = _find_first_child_with_tag(body, 'div')
+    comment, = div.children
+    assert isinstance(comment, Comment)
+    assert comment.content == ' just a regular comment '
 
 
 def _find_first_child_with_tag(element: Element, tag: str) -> Element | None:
