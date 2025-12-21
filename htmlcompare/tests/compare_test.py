@@ -609,3 +609,19 @@ def test_style_tag_with_multiple_selectors():
         '<style>#outlook a { padding:0; } body { margin:0; }</style>',
     )
     assert result.is_equal
+
+
+def test_style_tag_with_media_query():
+    result = compare_html(
+        '<style>@media only screen and (min-width:480px) { .foo { width: 100%; } }</style>',
+        '<style>@media only screen and (min-width:480px) { .foo { width:100%; } }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_different_media_query_content():
+    result = compare_html(
+        '<style>@media screen { .foo { width: 100%; } }</style>',
+        '<style>@media screen { .foo { width: 50%; } }</style>',
+    )
+    assert not result.is_equal

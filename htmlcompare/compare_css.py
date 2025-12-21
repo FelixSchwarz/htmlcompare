@@ -3,7 +3,7 @@
 from operator import attrgetter
 
 import tinycss2
-from tinycss2.ast import Declaration, NumberToken, QualifiedRule
+from tinycss2.ast import AtRule, Declaration, NumberToken, QualifiedRule
 
 
 __all__ = ['compare_css', 'compare_stylesheet']
@@ -80,48 +80,84 @@ def normalize_stylesheet(css_str):
     this function handles full stylesheets with selectors like:
         body { margin: 0; }
         .foo { color: red; }
+        @media screen { .foo { color: blue; } }
     """
     rules = tinycss2.parse_stylesheet(css_str, skip_comments=True, skip_whitespace=True)
+    return _normalize_rule_list(rules)
+
+
+def _normalize_rule_list(rules):
+    """Normalize a list of CSS rules (qualified rules, at-rules, etc.)."""
     normalized_rules = []
 
     for rule in rules:
         if rule.type == 'qualified-rule':
-            prelude = _strip_whitespace(rule.prelude)
-
-            # parse and normalize the content (declarations)
-            content_decls = tinycss2.parse_declaration_list(
-                rule.content, skip_comments=True, skip_whitespace=True
-            )
-            normalized_decls = []
-            for decl in content_decls:
-                if decl.type == 'declaration':
-                    tokens = _strip_whitespace(decl.value)
-                    tokens = _strip_zero_units(tokens)
-                    _decl = Declaration(
-                        line       = decl.source_line,
-                        column     = decl.source_column,
-                        name       = decl.name,
-                        lower_name = decl.lower_name,
-                        value      = tokens,
-                        important  = decl.important
-                    )
-                    normalized_decls.append(_decl)
-
-            # sort declarations by name for order-independent comparison
-            sorted_decls = sorted(normalized_decls, key=attrgetter('name'))
-
-            normalized_rule = QualifiedRule(
-                rule.source_line,
-                rule.source_column,
-                prelude,
-                sorted_decls,
-            )
+            normalized_rule = _normalize_qualified_rule(rule)
             normalized_rules.append(normalized_rule)
         elif rule.type == 'at-rule':
-            # keep at-rules as-is for now (could be extended later)
-            normalized_rules.append(rule)
+            normalized_rule = _normalize_at_rule(rule)
+            normalized_rules.append(normalized_rule)
         elif rule.type == 'error':
             # keep errors for debugging
             normalized_rules.append(rule)
 
     return tuple(normalized_rules)
+
+
+def _normalize_qualified_rule(rule):
+    """Normalize a qualified rule (selector { declarations })."""
+    prelude = _strip_whitespace(rule.prelude)
+
+    # parse and normalize the content (declarations)
+    content_decls = tinycss2.parse_declaration_list(
+        rule.content, skip_comments=True, skip_whitespace=True
+    )
+    normalized_decls = []
+    for decl in content_decls:
+        if decl.type == 'declaration':
+            tokens = _strip_whitespace(decl.value)
+            tokens = _strip_zero_units(tokens)
+            _decl = Declaration(
+                line       = decl.source_line,
+                column     = decl.source_column,
+                name       = decl.name,
+                lower_name = decl.lower_name,
+                value      = tokens,
+                important  = decl.important
+            )
+            normalized_decls.append(_decl)
+
+    # sort declarations by name for order-independent comparison
+    sorted_decls = sorted(normalized_decls, key=attrgetter('name'))
+
+    return QualifiedRule(
+        rule.source_line,
+        rule.source_column,
+        prelude,
+        sorted_decls,
+    )
+
+
+def _normalize_at_rule(rule):
+    """Normalize an at-rule (@media, @keyframes, etc.)."""
+    prelude = _strip_whitespace(rule.prelude)
+
+    # normalize the content if it contains nested rules (like @media)
+    if rule.content is not None:
+        content_rules = tinycss2.parse_rule_list(
+            rule.content,
+            skip_comments=True,
+            skip_whitespace=True,
+        )
+        normalized_content = list(_normalize_rule_list(content_rules))
+    else:
+        normalized_content = None
+
+    return AtRule(
+        rule.source_line,
+        rule.source_column,
+        rule.at_keyword,
+        rule.lower_at_keyword,
+        prelude,
+        normalized_content,
+    )
