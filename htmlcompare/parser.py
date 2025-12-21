@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 
 import html5lib
 
@@ -41,8 +42,8 @@ def _element_to_node(element) -> Element:
     return Element(tag=tag, attributes=attributes, children=children)
 
 
-def _convert_children(element) -> list:
-    children = []
+def _convert_children(element) -> Sequence[Element | TextNode | Comment]:
+    children: list[Element | TextNode | Comment] = []
     if element.text:
         # leading text before any child elements
         children.append(TextNode(content=element.text))

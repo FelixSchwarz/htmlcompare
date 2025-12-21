@@ -1,0 +1,192 @@
+# SPDX-License-Identifier: MIT
+
+from collections.abc import Sequence
+
+from htmlcompare.nodes import Comment, Document, Element, Node, TextNode
+from htmlcompare.parser import parse_html
+from htmlcompare.result import ComparisonResult, Difference, DifferenceType
+
+
+__all__ = ['compare_html2', 'compare_trees']
+
+
+def compare_html2(expected_html: str, actual_html: str) -> ComparisonResult:
+    """
+    Compare two HTML strings for equality.
+
+    This implementation uses a tree-based approach and currently
+    performs strict comparison without normalization.
+    """
+    expected_tree = parse_html(expected_html)
+    actual_tree = parse_html(actual_html)
+    return compare_trees(expected_tree, actual_tree)
+
+
+def compare_trees(expected: Document, actual: Document) -> ComparisonResult:
+    differences: list[Difference] = []
+    _compare_node_lists(expected.children, actual.children, "", differences)
+    _documents_are_equal = (len(differences) == 0)
+    return ComparisonResult(is_equal=_documents_are_equal, differences=differences)
+
+
+def _compare_node_lists(
+    expected: Sequence[Node],
+    actual: Sequence[Node],
+    path: str,
+    differences: list[Difference],
+) -> None:
+    max_len = max(len(expected), len(actual))
+
+    for i in range(max_len):
+        child_path = f"{path}[{i}]" if path else f"[{i}]"
+
+        if i >= len(expected):
+            # Extra node in actual
+            actual_node = actual[i]
+            differences.append(Difference(
+                type=DifferenceType.CHILD_EXTRA,
+                path=child_path,
+                expected=None,
+                actual=_node_summary(actual_node),
+                message=f"unexpected node: {_node_summary(actual_node)}",
+            ))
+            continue
+
+        if i >= len(actual):
+            # Missing node in actual
+            expected_node = expected[i]
+            differences.append(Difference(
+                type=DifferenceType.CHILD_MISSING,
+                path=child_path,
+                expected=_node_summary(expected_node),
+                actual=None,
+                message=f"missing node: {_node_summary(expected_node)}",
+            ))
+            continue
+
+        _compare_nodes(expected[i], actual[i], child_path, differences)
+
+
+def _compare_nodes(
+    expected: Node,
+    actual: Node,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    if type(expected) is not type(actual):
+        differences.append(Difference(
+            type=DifferenceType.NODE_TYPE_MISMATCH,
+            path=path,
+            expected=type(expected).__name__,
+            actual=type(actual).__name__,
+        ))
+        return
+
+    if isinstance(expected, Element):
+        assert isinstance(actual, Element)
+        _compare_elements(expected, actual, path, differences)
+    elif isinstance(expected, TextNode):
+        assert isinstance(actual, TextNode)
+        _compare_text_nodes(expected, actual, path, differences)
+    elif isinstance(expected, Comment):
+        assert isinstance(actual, Comment)
+        _compare_comments(expected, actual, path, differences)
+
+
+def _compare_elements(
+    expected: Element,
+    actual: Element,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    element_path = f"{path} > {expected.tag}" if path else expected.tag
+
+    # check tag names
+    if expected.tag != actual.tag:
+        differences.append(Difference(
+            type=DifferenceType.TAG_MISMATCH,
+            path=element_path,
+            expected=expected.tag,
+            actual=actual.tag,
+        ))
+        return  # don't compare children if tags differ
+
+    _compare_attributes(expected.attributes, actual.attributes, element_path, differences)
+    # compare children
+    _compare_node_lists(expected.children, actual.children, element_path, differences)
+
+
+def _compare_attributes(
+    expected: dict[str, str],
+    actual: dict[str, str],
+    path: str,
+    differences: list[Difference],
+) -> None:
+    all_keys = set(expected.keys()) | set(actual.keys())
+
+    for key in sorted(all_keys):
+        if key not in expected:
+            differences.append(Difference(
+                type=DifferenceType.ATTRIBUTE_EXTRA,
+                path=f"{path}@{key}",
+                expected=None,
+                actual=actual[key],
+                message=f"unexpected attribute '{key}'",
+            ))
+        elif key not in actual:
+            differences.append(Difference(
+                type=DifferenceType.ATTRIBUTE_MISSING,
+                path=f"{path}@{key}",
+                expected=expected[key],
+                actual=None,
+                message=f"missing attribute '{key}'",
+            ))
+        elif expected[key] != actual[key]:
+            differences.append(Difference(
+                type=DifferenceType.ATTRIBUTE_MISMATCH,
+                path=f"{path}@{key}",
+                expected=expected[key],
+                actual=actual[key],
+            ))
+
+
+def _compare_text_nodes(
+    expected: TextNode,
+    actual: TextNode,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    if expected.content != actual.content:
+        differences.append(Difference(
+            type=DifferenceType.TEXT_MISMATCH,
+            path=path,
+            expected=expected.content,
+            actual=actual.content,
+        ))
+
+
+def _compare_comments(
+    expected: Comment,
+    actual: Comment,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    if expected.content != actual.content:
+        differences.append(Difference(
+            type=DifferenceType.COMMENT_MISMATCH,
+            path=path,
+            expected=expected.content,
+            actual=actual.content,
+        ))
+
+
+def _node_summary(node: Node) -> str:
+    if isinstance(node, Element):
+        return f"<{node.tag}>"
+    elif isinstance(node, TextNode):
+        content = node.content[:20] + "..." if len(node.content) > 20 else node.content
+        return f"text({content!r})"
+    elif isinstance(node, Comment):
+        content = node.content[:20] + "..." if len(node.content) > 20 else node.content
+        return f"comment({content!r})"
+    return str(type(node).__name__)

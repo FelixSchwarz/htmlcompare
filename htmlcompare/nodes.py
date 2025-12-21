@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 
@@ -33,7 +34,7 @@ class Element:
     """Represents an HTML element with tag, attributes, and children."""
     tag: str
     attributes: dict[str, str] = field(default_factory=dict)
-    children: list['Node'] = field(default_factory=list)
+    children: Sequence['Node'] = field(default_factory=list)
 
     def __eq__(self, other):
         if not isinstance(other, Element):

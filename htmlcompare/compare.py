@@ -12,7 +12,7 @@ __all__ = ['CompareResult', 'Difference', 'compare_html']
 
 Difference = namedtuple('Difference', ('expected', 'actual',))
 
-_CompareResult = namedtuple('CompareResult', ('is_equal', 'differences'))
+_CompareResult = namedtuple('_CompareResult', ('is_equal', 'differences'))
 
 class CompareResult(_CompareResult):
     def __bool__(self):
