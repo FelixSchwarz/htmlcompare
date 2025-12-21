@@ -10,26 +10,49 @@ on:
     - main
 
 jobs:
-  tests:
-    # "ubuntu-latest" does not have Python 3.6
-    runs-on: ubuntu-20.04
+  tests-cpython:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [2.7, 3.6, 3.7, 3.8, 3.9, "3.10", "3.11", "pypy-2.7", "pypy-3.6"]
+        python-version: [3.9, "3.10", "3.11", "3.12", "3.13", "3.14"]
+    container:
+      image: python:${{ matrix.python-version }}
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
+        python3 -m venv venv-test
+        . venv-test/bin/activate
         pip install -e .[testing]
-        pip install pytest
 
-    - name: Run test suite
+    - name: Run test suite with CPython
       run: |
+        . venv-test/bin/activate
+        pytest
+
+
+  tests-pypy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pypy-version: ["3.10", "3.11", "latest"]
+    container:
+        image: pypy:${{ matrix.pypy-version }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies and run tests
+      run: |
+        python3 -m venv venv-test
+        . venv-test/bin/activate
+        pip install -e .[testing]
+
+    - name: Run test suite with pypy
+      run: |
+        . venv-test/bin/activate
         pytest
