@@ -68,9 +68,11 @@ def test_different_attribute_values_detected():
         '<div class="bar"></div>',
     )
     assert not result.is_equal
-    attr_diff, = [d for d in result.differences if d.type == DifferenceType.ATTRIBUTE_MISMATCH]
-    assert attr_diff.expected == 'foo'
-    assert attr_diff.actual == 'bar'
+    # class attributes produce CLASS_MISSING/CLASS_EXTRA, not ATTRIBUTE_MISMATCH
+    missing_diff, = [d for d in result.differences if d.type == DifferenceType.CLASS_MISSING]
+    extra_diff, = [d for d in result.differences if d.type == DifferenceType.CLASS_EXTRA]
+    assert 'foo' in missing_diff.expected
+    assert 'bar' in extra_diff.actual
 
 
 def test_missing_attribute_detected():
@@ -79,6 +81,7 @@ def test_missing_attribute_detected():
         '<div></div>',
     )
     assert not result.is_equal
+    # entire class attribute is missing -> ATTRIBUTE_MISSING
     attr_diffs = [d for d in result.differences if d.type == DifferenceType.ATTRIBUTE_MISSING]
     assert len(attr_diffs) >= 1
 
@@ -126,6 +129,54 @@ def test_can_detect_missing_attribute_img_alt():
     assert not result.is_equal
     attr_diffs = [d for d in result.differences if d.type == DifferenceType.ATTRIBUTE_MISSING]
     assert len(attr_diffs) >= 1
+
+
+def test_ignores_ordering_of_css_classes():
+    result = compare_html2(
+        '<div class="foo bar"></div>',
+        '<div class="bar foo"></div>',
+    )
+    assert result.is_equal
+
+
+def test_can_detect_different_css_classes():
+    result = compare_html2(
+        '<div class="foo bar"></div>',
+        '<div class="foobar"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_ignores_whitespace_inside_class_attribute():
+    result = compare_html2(
+        '<div class="foo   bar"></div>',
+        '<div class=" foo bar  "></div>',
+    )
+    assert result.is_equal
+
+
+def test_ignores_tab_in_class_attribute():
+    result = compare_html2(
+        '<div class="foo\tbar"></div>',
+        '<div class="foo bar"></div>',
+    )
+    assert result.is_equal
+
+
+def test_treats_absent_class_same_as_empty_class():
+    result = compare_html2(
+        '<div class=""></div>',
+        '<div></div>',
+    )
+    assert result.is_equal
+
+
+def test_treats_whitespace_only_class_same_as_absent():
+    result = compare_html2(
+        '<div class="  \t  "></div>',
+        '<div></div>',
+    )
+    assert result.is_equal
 
 
 def test_extra_child_detected():

@@ -122,32 +122,78 @@ def _compare_attributes(
     path: str,
     differences: list[Difference],
 ) -> None:
-    all_keys = set(expected.keys()) | set(actual.keys())
-
+    expected_normalized = _normalize_attributes(expected)
+    actual_normalized = _normalize_attributes(actual)
+    all_keys = set(expected_normalized) | set(actual_normalized)
     for key in sorted(all_keys):
-        if key not in expected:
+        if key not in expected_normalized:
             differences.append(Difference(
                 type=DifferenceType.ATTRIBUTE_EXTRA,
                 path=f"{path}@{key}",
                 expected=None,
-                actual=actual[key],
+                actual=actual_normalized[key],
                 message=f"unexpected attribute '{key}'",
             ))
-        elif key not in actual:
+        elif key not in actual_normalized:
             differences.append(Difference(
                 type=DifferenceType.ATTRIBUTE_MISSING,
                 path=f"{path}@{key}",
-                expected=expected[key],
+                expected=expected_normalized[key],
                 actual=None,
                 message=f"missing attribute '{key}'",
             ))
-        elif expected[key] != actual[key]:
+        elif key == 'class':
+            _compare_class_attribute(
+                expected_normalized[key], actual_normalized[key], path, differences
+            )
+        elif expected_normalized[key] != actual_normalized[key]:
             differences.append(Difference(
                 type=DifferenceType.ATTRIBUTE_MISMATCH,
                 path=f"{path}@{key}",
-                expected=expected[key],
-                actual=actual[key],
+                expected=expected_normalized[key],
+                actual=actual_normalized[key],
             ))
+
+
+def _normalize_attributes(attrs: dict[str, str]) -> dict[str, str]:
+    """Normalize attributes, removing empty class attributes."""
+    result = {}
+    for key, value in attrs.items():
+        # an empty class attribute is same as absent
+        if key == 'class' and not value.strip():
+            continue
+        result[key] = value
+    return result
+
+
+def _compare_class_attribute(
+    expected: str,
+    actual: str,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    expected_classes = set(expected.split())
+    actual_classes = set(actual.split())
+
+    missing = expected_classes - actual_classes
+    extra = actual_classes - expected_classes
+
+    if missing:
+        differences.append(Difference(
+            type=DifferenceType.CLASS_MISSING,
+            path=f"{path}@class",
+            expected=sorted(missing),
+            actual=None,
+            message=f"missing classes: {sorted(missing)}",
+        ))
+    if extra:
+        differences.append(Difference(
+            type=DifferenceType.CLASS_EXTRA,
+            path=f"{path}@class",
+            expected=None,
+            actual=sorted(extra),
+            message=f"unexpected classes: {sorted(extra)}",
+        ))
 
 
 def _compare_text_nodes(
