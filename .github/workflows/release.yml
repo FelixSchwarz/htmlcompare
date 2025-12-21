@@ -27,6 +27,7 @@ jobs:
           uv venv venv-test
           . venv-test/bin/activate
           uv build --wheel --sdist
+          rm dist/.gitignore
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1
