@@ -28,6 +28,6 @@ extend-select = [
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
-known-first-party = ["srw.billing"]
+known-first-party = ["htmlcompare"]
 known-local-folder = []
 combine-as-imports = true
