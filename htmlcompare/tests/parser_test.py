@@ -10,8 +10,8 @@ def test_parse_empty_document():
     doc = parse_html2('')
     assert isinstance(doc, Document)
     # html5lib always creates html/head/body structure
-    assert len(doc.children) == 1
-    assert doc.children[0].tag == 'html'
+    child, = doc.children
+    assert child.tag == 'html'
 
 
 def test_parse_single_element():
@@ -238,6 +238,43 @@ def test_regular_comment_not_parsed_as_conditional():
     comment, = div.children
     assert isinstance(comment, Comment)
     assert comment.content == ' just a regular comment '
+
+
+def test_parse_html5_doctype():
+    doc = parse_html2('<!DOCTYPE html><html><body></body></html>')
+    assert doc.doctype is not None
+    assert doc.doctype.name == 'html'
+    assert doc.doctype.public_id == ''
+    assert doc.doctype.system_id == ''
+
+
+def test_parse_no_doctype():
+    doc = parse_html2('<html><body></body></html>')
+    assert doc.doctype is None
+
+
+def test_parse_xhtml_transitional_doctype():
+    public_id = '-//W3C//DTD XHTML 1.0 Transitional//EN'
+    system_id = 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'
+    doctype = f'<!DOCTYPE html PUBLIC "{public_id}" "{system_id}">'
+    html = '<html><body></body></html>'
+    doc = parse_html2(doctype + html)
+    assert doc.doctype is not None
+    assert doc.doctype.name == 'html'
+    assert doc.doctype.public_id == public_id
+    assert doc.doctype.system_id == system_id
+
+
+def test_parse_html_strict_doctype():
+    public_id = '-//W3C//DTD HTML 4.01//EN'
+    system_id = 'http://www.w3.org/TR/html4/strict.dtd'
+    doctype = f'<!DOCTYPE HTML PUBLIC "{public_id}" "{system_id}">'
+    html = '<html><body></body></html>'
+    doc = parse_html2(doctype + html)
+    assert doc.doctype is not None
+    assert doc.doctype.name == 'html'
+    assert doc.doctype.public_id == public_id
+    assert doc.doctype.system_id == system_id
 
 
 def _find_first_child_with_tag(element: Element, tag: str) -> Optional[Element]:

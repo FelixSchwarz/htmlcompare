@@ -1,11 +1,19 @@
 # SPDX-License-Identifier: MIT
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Optional
 
 from htmlcompare.compare_css import compare_css, compare_stylesheet
 from htmlcompare.elements import is_self_closing_significant
-from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
+from htmlcompare.nodes import (
+    Comment,
+    ConditionalComment,
+    Doctype,
+    Document,
+    Element,
+    Node,
+    TextNode,
+)
 from htmlcompare.normalize import normalize_tree
 from htmlcompare.options import CompareOptions
 from htmlcompare.parser import parse_html
@@ -37,9 +45,57 @@ def compare_html(
 
 def _compare_trees(expected: Document, actual: Document) -> ComparisonResult:
     differences: list[Difference] = []
+    differences += _compare_doctype_declarations(expected.doctype, actual.doctype)
     _compare_node_lists(expected.children, actual.children, "", differences, parent_tag=None)
     _documents_are_equal = (len(differences) == 0)
     return ComparisonResult(is_equal=_documents_are_equal, differences=differences)
+
+
+def _compare_doctype_declarations(
+    expected: Optional[Doctype],
+    actual: Optional[Doctype],
+) -> Iterator[Difference]:
+    if expected is None and actual is None:
+        return ()
+    elif expected is not None and actual is None:
+        difference = Difference(
+            type=DifferenceType.DOCTYPE_MISSING,
+            path='DOCTYPE',
+            expected=_doctype_summary(expected),
+            actual=None,
+            message=f"missing DOCTYPE: {_doctype_summary(expected)}",
+        )
+        yield difference
+    elif expected is None and actual is not None:
+        difference = Difference(
+            type=DifferenceType.DOCTYPE_EXTRA,
+            path='DOCTYPE',
+            expected=None,
+            actual=_doctype_summary(actual),
+            message=f"unexpected DOCTYPE: {_doctype_summary(actual)}",
+        )
+        yield difference
+    elif expected != actual:
+        difference = Difference(
+            type=DifferenceType.DOCTYPE_MISMATCH,
+            path='DOCTYPE',
+            expected=_doctype_summary(expected),
+            actual=_doctype_summary(actual),
+            message="DOCTYPE mismatch",
+        )
+        yield difference
+
+
+def _doctype_summary(doctype: Doctype) -> str:
+    """Generate a summary string for a DOCTYPE."""
+    if doctype.public_id and doctype.system_id:
+        return f'<!DOCTYPE {doctype.name} PUBLIC "{doctype.public_id}" "{doctype.system_id}">'
+    elif doctype.public_id:
+        return f'<!DOCTYPE {doctype.name} PUBLIC "{doctype.public_id}">'
+    elif doctype.system_id:
+        return f'<!DOCTYPE {doctype.name} SYSTEM "{doctype.system_id}">'
+    else:
+        return f'<!DOCTYPE {doctype.name}>'
 
 
 def _compare_node_lists(

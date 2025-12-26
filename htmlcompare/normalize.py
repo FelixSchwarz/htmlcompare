@@ -24,7 +24,7 @@ def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> D
     if options is None:
         options = _DEFAULT_OPTIONS
     normalized_children = _normalize_children(doc.children, in_block_context=True, options=options)
-    return Document(children=normalized_children)
+    return Document(children=normalized_children, doctype=doc.doctype)
 
 
 def _has_inline_elements(children: list[Node], options: CompareOptions) -> bool:

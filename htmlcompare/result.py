@@ -26,6 +26,9 @@ class DifferenceType(Enum):
     CONDITIONAL_COMMENT_CONDITION_MISMATCH = auto()
     CONDITIONAL_COMMENT_CONTENT_MISMATCH = auto()
     SELF_CLOSING_MISMATCH = auto()
+    DOCTYPE_MISMATCH = auto()
+    DOCTYPE_MISSING = auto()
+    DOCTYPE_EXTRA = auto()
 
 
 @dataclass

@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 import html5lib
 
-from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, TextNode
+from htmlcompare.nodes import Comment, ConditionalComment, Doctype, Document, Element, TextNode
 
 
 __all__ = ['parse_html']
@@ -58,11 +58,29 @@ def parse_html(html_string: Union[str, bytes]) -> Document:
     Uses html5lib for HTML5-compliant parsing, then converts the
     resulting tree into our internal node representation.
     """
+    TreeBuilder = html5lib.getTreeBuilder('etree')
+    parser = html5lib.HTMLParser(tree=TreeBuilder, namespaceHTMLElements=False)
     marked_html = _mark_self_closing_tags(html_string)
-    html_element = html5lib.parse(marked_html, namespaceHTMLElements=False)
-    html_node = _element_to_node(html_element)
+    parser.parse(marked_html)
 
-    return Document(children=[html_node])
+    doctype = _extract_doctype(parser.tree.document)
+    html_element = parser.tree.getDocument()
+    html_node = _element_to_node(html_element)
+    return Document(children=[html_node], doctype=doctype)
+
+
+def _extract_doctype(document) -> Optional[Doctype]:
+    for child in document.childNodes:
+        element = getattr(child, '_element', None)
+        if element is None:
+            continue
+        is_document_type_node = (getattr(element, 'tag', None) == '<!DOCTYPE>')
+        if is_document_type_node:
+            name = element.text or ''
+            public_id = element.attrib.get('publicId', '')
+            system_id = element.attrib.get('systemId', '')
+            return Doctype(name=name, public_id=public_id, system_id=system_id)
+    return None
 
 
 def _element_to_node(element) -> Element:
