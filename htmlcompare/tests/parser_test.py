@@ -3,11 +3,11 @@
 from typing import Optional
 
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, TextNode
-from htmlcompare.parser import parse_html as parse_html2
+from htmlcompare.parser import parse_html
 
 
 def test_parse_empty_document():
-    doc = parse_html2('')
+    doc = parse_html('')
     assert isinstance(doc, Document)
     # html5lib always creates html/head/body structure
     child, = doc.children
@@ -15,7 +15,7 @@ def test_parse_empty_document():
 
 
 def test_parse_single_element():
-    doc = parse_html2('<div></div>')
+    doc = parse_html('<div></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -26,7 +26,7 @@ def test_parse_single_element():
 
 
 def test_parse_element_with_text():
-    doc = parse_html2('<p>Hello</p>')
+    doc = parse_html('<p>Hello</p>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     p = _find_first_child_with_tag(body, 'p')
@@ -37,7 +37,7 @@ def test_parse_element_with_text():
 
 
 def test_parse_nested_elements():
-    doc = parse_html2('<div><span>x</span></div>')
+    doc = parse_html('<div><span>x</span></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -50,7 +50,7 @@ def test_parse_nested_elements():
 
 
 def test_parse_element_with_attributes():
-    doc = parse_html2('<div class="foo" id="bar"></div>')
+    doc = parse_html('<div class="foo" id="bar"></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -58,7 +58,7 @@ def test_parse_element_with_attributes():
 
 
 def test_parse_self_closing_element():
-    doc = parse_html2('<br>')
+    doc = parse_html('<br>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     br = _find_first_child_with_tag(body, 'br')
@@ -67,7 +67,7 @@ def test_parse_self_closing_element():
 
 
 def test_parse_multiple_children():
-    doc = parse_html2('<div><p>a</p><p>b</p></div>')
+    doc = parse_html('<div><p>a</p><p>b</p></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -79,7 +79,7 @@ def test_parse_multiple_children():
 
 
 def test_parse_mixed_content():
-    doc = parse_html2('<p>Hello <b>world</b>!</p>')
+    doc = parse_html('<p>Hello <b>world</b>!</p>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     p = _find_first_child_with_tag(body, 'p')
@@ -92,7 +92,7 @@ def test_parse_mixed_content():
 
 
 def test_parse_comment():
-    doc = parse_html2('<div><!-- comment --></div>')
+    doc = parse_html('<div><!-- comment --></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -102,7 +102,7 @@ def test_parse_comment():
 
 
 def test_parse_comment_with_text():
-    doc = parse_html2('<div>before<!-- comment -->after</div>')
+    doc = parse_html('<div>before<!-- comment -->after</div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -113,7 +113,7 @@ def test_parse_comment_with_text():
 
 
 def test_parse_whitespace_preserved():
-    doc = parse_html2('<p>  spaces  </p>')
+    doc = parse_html('<p>  spaces  </p>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     p = _find_first_child_with_tag(body, 'p')
@@ -121,7 +121,7 @@ def test_parse_whitespace_preserved():
 
 
 def test_parse_attribute_with_empty_value():
-    doc = parse_html2('<div class=""></div>')
+    doc = parse_html('<div class=""></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -129,7 +129,7 @@ def test_parse_attribute_with_empty_value():
 
 
 def test_parse_img_with_alt():
-    doc = parse_html2('<img alt="">')
+    doc = parse_html('<img alt="">')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     img = _find_first_child_with_tag(body, 'img')
@@ -137,7 +137,7 @@ def test_parse_img_with_alt():
 
 
 def test_parse_deeply_nested():
-    doc = parse_html2('<div><ul><li><a href="#">link</a></li></ul></div>')
+    doc = parse_html('<div><ul><li><a href="#">link</a></li></ul></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -150,7 +150,7 @@ def test_parse_deeply_nested():
 
 
 def test_parse_style_attribute():
-    doc = parse_html2('<div style="color: red; font-weight: bold"></div>')
+    doc = parse_html('<div style="color: red; font-weight: bold"></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -158,7 +158,7 @@ def test_parse_style_attribute():
 
 
 def test_parse_multiple_classes():
-    doc = parse_html2('<div class="foo bar baz"></div>')
+    doc = parse_html('<div class="foo bar baz"></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -166,7 +166,7 @@ def test_parse_multiple_classes():
 
 
 def test_parse_head_and_body():
-    doc = parse_html2('<html><head><title>Test</title></head><body><p>Hello</p></body></html>')
+    doc = parse_html('<html><head><title>Test</title></head><body><p>Hello</p></body></html>')
     html, = doc.children
     assert html.tag == 'html'
     head = _find_first_child_with_tag(html, 'head')
@@ -178,7 +178,7 @@ def test_parse_head_and_body():
 
 
 def test_parse_script_content():
-    doc = parse_html2('<script>var x = 1;</script>')
+    doc = parse_html('<script>var x = 1;</script>')
     html, = doc.children
     head = _find_first_child_with_tag(html, 'head')
     script = _find_first_child_with_tag(head, 'script')
@@ -187,7 +187,7 @@ def test_parse_script_content():
 
 
 def test_parse_style_tag_content():
-    doc = parse_html2('<style>.foo { color: red; }</style>')
+    doc = parse_html('<style>.foo { color: red; }</style>')
     html, = doc.children
     head = _find_first_child_with_tag(html, 'head')
     style = _find_first_child_with_tag(head, 'style')
@@ -196,7 +196,7 @@ def test_parse_style_tag_content():
 
 
 def test_parses_conditional_comment():
-    doc = parse_html2('<div><!--[if IE]><p>IE only</p><![endif]--></div>')
+    doc = parse_html('<div><!--[if IE]><p>IE only</p><![endif]--></div>')
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -211,7 +211,7 @@ def test_parses_conditional_comment():
 
 
 def test_parses_conditional_comment_with_comparison():
-    doc = parse_html2("<div><!--[if lt IE 9]><script src='ie8.js'></script><![endif]--></div>")
+    doc = parse_html("<div><!--[if lt IE 9]><script src='ie8.js'></script><![endif]--></div>")
     html, = doc.children
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -221,7 +221,7 @@ def test_parses_conditional_comment_with_comparison():
 
 
 def test_parses_conditional_comment_gte():
-    doc = parse_html2('<head><!--[if gte IE 8]><link rel="stylesheet" href="ie8.css"><![endif]--></head>')  # noqa: E501
+    doc = parse_html('<head><!--[if gte IE 8]><link rel="stylesheet" href="ie8.css"><![endif]--></head>')  # noqa: E501
     html, = doc.children
     head = _find_first_child_with_tag(html, 'head')
     assert len(head.children) >= 1
@@ -231,7 +231,7 @@ def test_parses_conditional_comment_gte():
 
 
 def test_regular_comment_not_parsed_as_conditional():
-    doc = parse_html2('<div><!-- just a regular comment --></div>')
+    doc = parse_html('<div><!-- just a regular comment --></div>')
     html = doc.children[0]
     body = _find_first_child_with_tag(html, 'body')
     div = _find_first_child_with_tag(body, 'div')
@@ -241,7 +241,7 @@ def test_regular_comment_not_parsed_as_conditional():
 
 
 def test_parse_html5_doctype():
-    doc = parse_html2('<!DOCTYPE html><html><body></body></html>')
+    doc = parse_html('<!DOCTYPE html><html><body></body></html>')
     assert doc.doctype is not None
     assert doc.doctype.name == 'html'
     assert doc.doctype.public_id == ''
@@ -249,7 +249,7 @@ def test_parse_html5_doctype():
 
 
 def test_parse_no_doctype():
-    doc = parse_html2('<html><body></body></html>')
+    doc = parse_html('<html><body></body></html>')
     assert doc.doctype is None
 
 
@@ -258,7 +258,7 @@ def test_parse_xhtml_transitional_doctype():
     system_id = 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'
     doctype = f'<!DOCTYPE html PUBLIC "{public_id}" "{system_id}">'
     html = '<html><body></body></html>'
-    doc = parse_html2(doctype + html)
+    doc = parse_html(doctype + html)
     assert doc.doctype is not None
     assert doc.doctype.name == 'html'
     assert doc.doctype.public_id == public_id
@@ -270,7 +270,7 @@ def test_parse_html_strict_doctype():
     system_id = 'http://www.w3.org/TR/html4/strict.dtd'
     doctype = f'<!DOCTYPE HTML PUBLIC "{public_id}" "{system_id}">'
     html = '<html><body></body></html>'
-    doc = parse_html2(doctype + html)
+    doc = parse_html(doctype + html)
     assert doc.doctype is not None
     assert doc.doctype.name == 'html'
     assert doc.doctype.public_id == public_id
