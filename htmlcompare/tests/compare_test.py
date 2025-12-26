@@ -645,3 +645,126 @@ def test_conditional_comment_ignores_whitespace_inside_nested_block_elements():
     single_line = '<div><!--[if mso | IE]><table><tr><td><v:image src="test.jpg" /><![endif]--></div>'  # noqa: E501
     result = compare_html(multi_line, single_line)
     assert result.is_equal
+
+
+
+class TestSelfClosingTagDetection:
+    def test_detects_vml_rect_self_closing_vs_opening_tag(self):
+        # v:rect is a VML element where self-closing syntax matters for Outlook.
+        result = compare_html(
+            '<div><v:rect style="width:100px" /></div>',
+            '<div><v:rect style="width:100px" ></v:rect></div>',
+        )
+        assert not result.is_equal
+        diff, = [d for d in result.differences if d.type == DifferenceType.SELF_CLOSING_MISMATCH]
+        assert 'v:rect' in diff.path
+
+    def test_detects_vml_fill_self_closing_difference(self):
+        result = compare_html(
+            '<v:fill color="red" />',
+            '<v:fill color="red" ></v:fill>',
+        )
+        assert not result.is_equal
+
+    def test_same_vml_self_closing_elements_are_equal(self):
+        html = '<v:rect xmlns:v="urn:schemas-microsoft-com:vml" style="width:100px" />'
+        assert compare_html(html, html).is_equal
+
+    def test_same_vml_non_self_closing_elements_are_equal(self):
+        html = '<v:rect style="width:100px"></v:rect>'
+        assert compare_html(html, html).is_equal
+
+    def test_detects_script_self_closing_difference(self):
+        # <script /> behaves differently from <script></script> in browsers.
+        result = compare_html(
+            '<script src="app.js" />',
+            '<script src="app.js"></script>',
+        )
+        assert not result.is_equal
+
+    def test_detects_style_self_closing_difference(self):
+        # <style /> behaves differently from <style></style> in browsers.
+        result = compare_html(
+            '<style type="text/css" />',
+            '<style type="text/css"></style>',
+        )
+        assert not result.is_equal
+
+    def test_ignores_html5_void_element_self_closing_br(self):
+        assert compare_html('<br>', '<br/>').is_equal
+        assert compare_html('<br>', '<br />').is_equal
+        assert compare_html('<br/>', '<br />').is_equal
+
+    def test_ignores_html5_void_element_self_closing_img(self):
+        assert compare_html(
+            '<img src="test.jpg" alt="">',
+            '<img src="test.jpg" alt="" />',
+        ).is_equal
+
+    def test_ignores_html5_void_element_self_closing_input(self):
+        assert compare_html(
+            '<input type="text" name="foo">',
+            '<input type="text" name="foo" />',
+        ).is_equal
+
+    def test_ignores_html5_void_element_self_closing_meta(self):
+        assert compare_html(
+            '<meta charset="utf-8">',
+            '<meta charset="utf-8" />',
+        ).is_equal
+
+    def test_ignores_regular_div_self_closing(self):
+        # Regular HTML elements like div - self-closing doesn't matter semantically.
+        # Note: both become <div></div> after parsing, self-closing div is invalid HTML
+        assert compare_html('<div />', '<div></div>').is_equal
+
+    def test_vml_in_conditional_comment(self):
+        # VML self-closing detection works also inside conditional comments.
+        result = compare_html(
+            '<div><!--[if mso]><v:rect style="width:100px" /><![endif]--></div>',
+            '<div><!--[if mso]><v:rect style="width:100px" ></v:rect><![endif]--></div>',
+        )
+        assert not result.is_equal
+
+    def test_multiple_vml_elements_with_mixed_self_closing(self):
+        # Each VML element's self-closing status is checked independently.
+        html = '<v:rect /><v:fill /><v:stroke />'
+        assert compare_html(html, html).is_equal
+
+        # different self-closing on v:fill
+        result = compare_html(
+            '<v:rect /><v:fill /><v:stroke />',
+            '<v:rect /><v:fill ></v:fill><v:stroke />',
+        )
+        assert not result.is_equal
+
+    def test_detects_textarea_self_closing_difference(self):
+        # <textarea /> is invalid and may cause rendering issues.
+        result = compare_html(
+            '<textarea name="comment" />',
+            '<textarea name="comment"></textarea>',
+        )
+        assert not result.is_equal
+
+    def test_detects_iframe_self_closing_difference(self):
+        result = compare_html(
+            '<iframe src="page.html" />',
+            '<iframe src="page.html"></iframe>',
+        )
+        assert not result.is_equal
+
+    def test_unknown_vml_namespace_element(self):
+        # Any v: prefixed element should have self-closing checked.
+        result = compare_html(
+            '<v:customshape fill="red" />',
+            '<v:customshape fill="red"></v:customshape>',
+        )
+        assert not result.is_equal
+
+    def test_office_namespace_element(self):
+        # o: prefixed elements (Office namespace) should have self-closing checked.
+        result = compare_html(
+            '<o:lock aspectratio="t" />',
+            '<o:lock aspectratio="t"></o:lock>',
+        )
+        assert not result.is_equal

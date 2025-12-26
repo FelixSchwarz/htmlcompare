@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Optional
 
 from htmlcompare.compare_css import compare_css, compare_stylesheet
+from htmlcompare.elements import is_self_closing_significant
 from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
 from htmlcompare.normalize import normalize_tree
 from htmlcompare.options import CompareOptions
@@ -130,6 +131,18 @@ def _compare_elements(
         ))
         return  # don't compare children if tags differ
 
+    is_self_closing_different = (expected.is_self_closing != actual.is_self_closing)
+    if is_self_closing_different and is_self_closing_significant(expected.tag):
+        expected_form = _html_tag(expected.tag, expected.is_self_closing)
+        actual_form = _html_tag(actual.tag, actual.is_self_closing)
+        differences.append(Difference(
+            type=DifferenceType.SELF_CLOSING_MISMATCH,
+            path=element_path,
+            expected=expected_form,
+            actual=actual_form,
+            message=f"self-closing syntax differs: expected {expected_form}, got {actual_form}",
+        ))
+
     _compare_attributes(expected.attributes, actual.attributes, element_path, differences)
     # compare children, passing tag name for context-aware comparison (e.g., CSS in <style> tags)
     _compare_node_lists(
@@ -139,6 +152,12 @@ def _compare_elements(
         differences,
         parent_tag=expected.tag,
     )
+
+
+def _html_tag(tag: str, is_self_closing) -> str:
+    if is_self_closing:
+        return f"<{tag} ... />"
+    return f"<{tag} ...>"
 
 
 def _compare_attributes(

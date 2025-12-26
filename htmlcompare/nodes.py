@@ -52,6 +52,7 @@ class Element:
     tag: str
     attributes: dict[str, str] = field(default_factory=dict)
     children: Sequence['Node'] = field(default_factory=list)
+    is_self_closing: bool = False
 
     def __eq__(self, other):
         if not isinstance(other, Element):
@@ -60,6 +61,7 @@ class Element:
             self.tag == other.tag
             and self.attributes == other.attributes
             and self.children == other.children
+            and self.is_self_closing == other.is_self_closing
         )
 
 

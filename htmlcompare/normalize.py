@@ -147,6 +147,7 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
         tag=element.tag,
         attributes=element.attributes,
         children=normalized_children,
+        is_self_closing=element.is_self_closing,
     )
 
 
