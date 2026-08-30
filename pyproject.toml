@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 
 [project]
@@ -48,11 +49,9 @@ Code            = "https://github.com/FelixSchwarz/htmlcompare"
 htmlcompare = "htmlcompare.cli:htmlcompare_cli"
 
 
-[tool.setuptools.dynamic]
-version = {file = "VERSION.txt"}
-
-[tool.setuptools.packages.find]
-include = ["htmlcompare*"]
+[tool.hatch.version]
+path = "VERSION.txt"
+pattern = "(?P<version>.+)"
 
 
 [tool.ruff]

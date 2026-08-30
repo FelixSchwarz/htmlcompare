@@ -7,3 +7,6 @@
 /.pydevproject
 /.settings
 /.pytest_cache/
+/.venv
+# e.g. ruff/mypy
+/.*cache
