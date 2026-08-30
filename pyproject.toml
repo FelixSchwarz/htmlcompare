@@ -53,6 +53,10 @@ htmlcompare = "htmlcompare.cli:htmlcompare_cli"
 build = [
     "hatchling",
 ]
+quality = [
+    # >= 0.4.7 for "prek update --freeze --cooldown-days"
+    "prek >= 0.4.7",
+]
 
 
 [tool.hatch.version]

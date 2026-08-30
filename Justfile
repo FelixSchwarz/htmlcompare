@@ -19,6 +19,9 @@ build:
 test:
     uv run --locked --extra testing pytest
 
+update-prek-hooks:
+    uv run --group quality prek update --freeze --cooldown-days=7
+
 # pin GitHub Actions in ".github/workflows" to the latest commit sha
 # (stays within the current major version unless "--allow-major-upgrades"
 # is used)
