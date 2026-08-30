@@ -40,11 +40,9 @@ jobs:
         with:
           version: "latest-known"
 
-      - name: Build wheel
+      - name: Build wheel and sdist
         run: |
-          uv venv venv-test
-          . venv-test/bin/activate
-          uv build --wheel --sdist
+          uv build --wheel --sdist --build-constraint build-constraints.txt --require-hashes
           rm dist/.gitignore
 
       - name: Attest build provenance

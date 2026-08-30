@@ -9,5 +9,12 @@ install-locked-dependencies:
 update-dependencies:
     uv lock --upgrade
 
+update-build-constraints:
+    uv lock --upgrade-package hatchling
+    uv export --frozen --only-group build --output-file build-constraints.txt
+
+build:
+    uv build --wheel --sdist --build-constraint build-constraints.txt --require-hashes
+
 test:
     uv run --locked --extra testing pytest
