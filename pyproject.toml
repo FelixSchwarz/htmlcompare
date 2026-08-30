@@ -49,9 +49,19 @@ Code            = "https://github.com/FelixSchwarz/htmlcompare"
 htmlcompare = "htmlcompare.cli:htmlcompare_cli"
 
 
+[dependency-groups]
+build = [
+    "hatchling",
+]
+
+
 [tool.hatch.version]
 path = "VERSION.txt"
 pattern = "(?P<version>.+)"
+
+
+[tool.uv]
+exclude-newer = "7 days"
 
 
 [tool.ruff]
