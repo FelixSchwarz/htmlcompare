@@ -1,6 +1,60 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 
+
+[project]
+name            = "HTMLCompare"
+description     = "library to compare HTML while ignoring non-functional differences"
+readme          = "README.md"
+license         = "MIT"
+license-files   = ["LICENSE.txt"]
+requires-python = ">= 3.9"
+dynamic         = ["version"]
+
+authors = [
+    {name = "Felix Schwarz", email = "felix.schwarz@oss.schwarz.eu"},
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Text Processing :: Markup :: HTML",
+]
+
+dependencies = [
+    "html5lib",
+    "tinycss2",
+]
+
+[project.optional-dependencies]
+testing = [
+    "pytest",
+]
+
+[project.urls]
+Homepage        = "https://github.com/FelixSchwarz/htmlcompare"
+Code            = "https://github.com/FelixSchwarz/htmlcompare"
+"Issue tracker" = "https://github.com/FelixSchwarz/htmlcompare/issues"
+
+[project.scripts]
+htmlcompare = "htmlcompare.cli:htmlcompare_cli"
+
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION.txt"}
+
+[tool.setuptools.packages.find]
+include = ["htmlcompare*"]
+
+
 [tool.ruff]
 line-length = 100
 src = ["htmlcompare"]
