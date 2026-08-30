@@ -9,6 +9,12 @@ on:
     branches:
     - main
 
+
+env:
+  # query OSV for known malware before syncing
+  UV_MALWARE_CHECK: "1"
+
+
 jobs:
   tests-cpython:
     runs-on: ubuntu-latest
@@ -21,17 +27,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
-
-    - name: Install dependencies
-      run: |
-        python3 -m venv venv-test
-        . venv-test/bin/activate
-        pip install -e .[testing]
+    - uses: astral-sh/setup-uv@v10.0.1
+      with:
+        version: "latest-known"
 
     - name: Run test suite with CPython
       run: |
+        uv venv --python python venv-test
         . venv-test/bin/activate
-        pytest
+        uv pip install -e '.[testing]'
+        uv run --active --no-project pytest
 
 
   tests-pypy:
@@ -44,15 +49,14 @@ jobs:
         image: pypy:${{ matrix.pypy-version }}
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies and run tests
-      run: |
-        python3 -m venv venv-test
-        . venv-test/bin/activate
-        pip install -e .[testing]
+    - uses: actions/checkout@v6
+    - uses: astral-sh/setup-uv@v10.0.1
+      with:
+        version: "latest-known"
 
     - name: Run test suite with pypy
       run: |
+        uv venv --python python venv-test
         . venv-test/bin/activate
-        pytest
+        uv pip install -e '.[testing]'
+        uv run --active --no-project pytest
