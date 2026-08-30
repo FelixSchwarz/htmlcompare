@@ -18,3 +18,9 @@ build:
 
 test:
     uv run --locked --extra testing pytest
+
+# pin GitHub Actions in ".github/workflows" to the latest commit sha
+# (stays within the current major version unless "--allow-major-upgrades"
+# is used)
+update-workflow-actions *ARGS:
+    ./tools/update-workflow-actions.py --cooldown-days=7 {{ARGS}}
