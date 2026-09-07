@@ -56,6 +56,7 @@ build = [
 quality = [
     # >= 0.4.7 for "prek update --freeze --cooldown-days"
     "prek >= 0.4.7",
+    "ty",
 ]
 
 
@@ -66,6 +67,16 @@ pattern = "(?P<version>.+)"
 
 [tool.uv]
 exclude-newer = "7 days"
+
+
+[tool.ty.src]
+exclude = [
+    # This test asserts its way through the node tree, so almost every access
+    # trips up the type checker ("Optional[Element]" is not narrowed by an
+    # "assert" on a different expression). Check it again once the test uses
+    # helpers which narrow properly.
+    "htmlcompare/tests/parser_test.py",
+]
 
 
 [tool.ruff]

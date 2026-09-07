@@ -8,6 +8,7 @@ import tinycss2
 from tinycss2.ast import (
     AtRule,
     Declaration,
+    LiteralToken,
     Node,
     NumberToken,
     QualifiedRule,
@@ -63,7 +64,7 @@ def _strip_whitespace(all_tokens):
     return tokens
 
 def is_separator(token: Node, separators: Container[str]) -> bool:
-    return (token.type == 'literal') and (token.value in separators)
+    return isinstance(token, LiteralToken) and (token.value in separators)
 
 def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]) -> list[Node]:
     """

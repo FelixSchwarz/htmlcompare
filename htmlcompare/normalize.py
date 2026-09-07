@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 import re
+from collections.abc import Sequence
 from typing import Optional
 
 from htmlcompare.elements import is_block_element
@@ -27,7 +28,7 @@ def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> D
     return Document(children=normalized_children, doctype=doc.doctype)
 
 
-def _has_inline_elements(children: list[Node], options: CompareOptions) -> bool:
+def _has_inline_elements(children: Sequence[Node], options: CompareOptions) -> bool:
     """
     Check if children list contains inline elements.
 
@@ -48,7 +49,7 @@ def _has_inline_elements(children: list[Node], options: CompareOptions) -> bool:
     return False
 
 
-def _has_significant_text(children: list[Node], options: CompareOptions) -> bool:
+def _has_significant_text(children: Sequence[Node], options: CompareOptions) -> bool:
     """
     Check if children list contains non-whitespace text content.
 
@@ -63,7 +64,7 @@ def _has_significant_text(children: list[Node], options: CompareOptions) -> bool
 
 
 def _normalize_children(
-    children: list[Node],
+    children: Sequence[Node],
     in_block_context: bool,
     options: CompareOptions,
 ) -> list[Node]:

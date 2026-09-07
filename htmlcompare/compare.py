@@ -55,9 +55,9 @@ def _compare_doctype_declarations(
     expected: Optional[Doctype],
     actual: Optional[Doctype],
 ) -> Iterator[Difference]:
-    if expected is None and actual is None:
-        return ()
-    elif expected is not None and actual is None:
+    if actual is None:
+        if expected is None:
+            return
         difference = Difference(
             type=DifferenceType.DOCTYPE_MISSING,
             path='DOCTYPE',
@@ -66,7 +66,7 @@ def _compare_doctype_declarations(
             message=f"missing DOCTYPE: {_doctype_summary(expected)}",
         )
         yield difference
-    elif expected is None and actual is not None:
+    elif expected is None:
         difference = Difference(
             type=DifferenceType.DOCTYPE_EXTRA,
             path='DOCTYPE',
