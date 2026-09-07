@@ -943,6 +943,62 @@ def test_style_tag_compares_valid_rules_next_to_a_broken_one_semantically():
     assert result.is_equal
 
 
+# --- Malformed Inline Styles ---
+#
+# Same rule as for a "<style>" tag: a "style" attribute which does not parse
+# must never raise and must never be dropped.
+
+@pytest.mark.parametrize('style', [
+    'color red',
+    'padding',
+    'width:100%; !important',
+    '@media screen{color:red}',
+    # the IE star hack, still in use in HTML email
+    '*zoom:1',
+])
+def test_malformed_style_attribute_is_equal_to_itself(style):
+    # these used to raise "AssertionError: <ParseError invalid>"
+    result = compare_html(f'<p style="{style}">x</p>', f'<p style="{style}">x</p>')
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_style', 'actual_style'), [
+    ('color red', 'background blue'),
+    ('padding', 'margin'),
+    ('*zoom:1', '*zoom:2'),
+    # a malformed declaration must not be dropped, not even next to a valid one
+    ('width:100%; !important', 'width:100%'),
+    ('@media screen{color:red}', '@media print{color:red}'),
+])
+def test_detects_differences_in_malformed_style_attributes(expected_style, actual_style):
+    result = compare_html(
+        f'<p style="{expected_style}">x</p>',
+        f'<p style="{actual_style}">x</p>',
+    )
+    assert not result.is_equal
+
+
+def test_malformed_style_attribute_is_reported_as_a_style_mismatch():
+    # a raised exception is not attributable to an element, a difference is
+    result = compare_html('<p style="color red">x</p>', '<p style="padding">x</p>')
+    assert not result.is_equal
+    (difference,) = result.differences
+    assert difference.type == DifferenceType.STYLE_MISMATCH
+    assert difference.path.endswith('p@style')
+    assert difference.expected == 'color red'
+    assert difference.actual == 'padding'
+
+
+def test_compares_other_attributes_next_to_a_malformed_style_attribute():
+    result = compare_html(
+        '<p class="a" style="color red">x</p>',
+        '<p class="b" style="color red">x</p>',
+    )
+    assert not result.is_equal
+    difference_types = {difference.type for difference in result.differences}
+    assert DifferenceType.STYLE_MISMATCH not in difference_types
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Container, Iterable, Sequence
+from typing import Optional
 
 import tinycss2
 from tinycss2.ast import (
@@ -64,9 +65,11 @@ _LENGTH_UNITS = frozenset({
     'svb', 'svh', 'svi', 'svmax', 'svmin', 'svw',
 })
 
-def compare_css(expected_css, actual_css):
+def compare_css(expected_css: str, actual_css: str) -> bool:
     _e_css = normalize_css(expected_css)
     _a_css = normalize_css(actual_css)
+    if (_e_css is None) or (_a_css is None):
+        return _compare_literally(expected_css, actual_css)
     _e_css_str = tinycss2.serialize(_e_css)
     _a_css_str = tinycss2.serialize(_a_css)
     return _e_css_str == _a_css_str
@@ -95,7 +98,7 @@ def _contains_parse_error(rules: Iterable[Node]) -> bool:
 
 def _compare_literally(expected_css: str, actual_css: str) -> bool:
     """
-    Compare CSS which tinycss2 could not parse into rules.
+    Compare CSS which tinycss2 could not parse into rules or declarations.
 
     A ``ParseError`` carries only "kind" and "message", never the offending
     source text, so it can not be serialized. Comparing those attributes instead
@@ -235,13 +238,22 @@ def _sort_declarations(decls):
     return sorted(decls, key=_property_family)
 
 
-def normalize_css(css_declaration_str):
+def normalize_css(css_declaration: str) -> Optional[tuple[Declaration, ...]]:
+    """
+    Normalize the declarations of a "style" attribute for comparison.
+
+    Return `None` if the attribute does not parse as a declaration list, so the
+    caller can fall back to a literal comparison.
+    """
     _decls = []
     _css_decls = tinycss2.parse_declaration_list(
-        css_declaration_str, skip_comments=True, skip_whitespace=True
+        css_declaration, skip_comments=True, skip_whitespace=True
     )
     for decl in _css_decls:
-        assert (decl.type == 'declaration'), decl
+        # tinycss2 also returns `ParseError` ("color red", "*zoom:1") and
+        # `AtRule` ("@media screen{color:red}") objects.
+        if not isinstance(decl, Declaration):
+            return None
         _decls.append(_normalize_declaration(decl))
 
     return tuple(_sort_declarations(_decls))
