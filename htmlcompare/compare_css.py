@@ -1,12 +1,27 @@
 # SPDX-License-Identifier: MIT
 
+from collections.abc import Sequence
+import re
 from operator import attrgetter
 
 import tinycss2
-from tinycss2.ast import AtRule, Declaration, NumberToken, QualifiedRule
+from tinycss2.ast import AtRule, Declaration, Node, NumberToken, QualifiedRule
 
 
 __all__ = ['compare_css', 'compare_stylesheet']
+
+# at-rules whose body is a list of declarations instead of a list of rules.
+# Parsing these as a rule list yields nothing but tinycss2 parse errors.
+_DECLARATION_BODIED_AT_RULES = frozenset({
+    'counter-style',
+    'font-face',
+    'font-palette-values',
+    'page',
+    'property',
+    'viewport',
+})
+
+_VENDOR_PREFIX_RE = re.compile(r'^-[a-z]+-')
 
 def compare_css(expected_css, actual_css):
     _e_css = normalize_css(expected_css)
@@ -116,39 +131,49 @@ def _normalize_qualified_rule(rule):
     """Normalize a qualified rule (selector { declarations })."""
     prelude = _strip_whitespace(rule.prelude)
 
-    # parse and normalize the content (declarations)
-    content_decls = tinycss2.parse_declaration_list(
-        rule.content, skip_comments=True, skip_whitespace=True
-    )
-    normalized_decls = []
-    for decl in content_decls:
-        if decl.type == 'declaration':
-            normalized_decls.append(_normalize_declaration(decl))
-
-    sorted_decls = _sort_declarations(normalized_decls)
-
     return QualifiedRule(
         rule.source_line,
         rule.source_column,
         prelude,
-        sorted_decls,
+        _normalize_declaration_body(rule.content),
     )
 
 
-def _normalize_at_rule(rule):
+def _normalize_declaration_body(content: Sequence[Node]) -> list[Declaration]:
+    """Normalize the body of a rule which contains declarations."""
+    decls = tinycss2.parse_declaration_list(
+        content, skip_comments=True, skip_whitespace=True
+    )
+    normalized_decls = [
+        _normalize_declaration(decl) for decl in decls if decl.type == 'declaration'
+    ]
+    return _sort_declarations(normalized_decls)
+
+
+def _has_declaration_body(rule: AtRule) -> bool:
+    """Return True if the at-rule contains declarations instead of nested rules."""
+    at_keyword = _VENDOR_PREFIX_RE.sub('', rule.lower_at_keyword)
+    return (at_keyword in _DECLARATION_BODIED_AT_RULES)
+
+
+def _normalize_at_rule(rule: AtRule) -> AtRule:
     """Normalize an at-rule (@media, @keyframes, etc.)."""
     prelude = _strip_whitespace(rule.prelude)
 
-    # normalize the content if it contains nested rules (like @media)
-    if rule.content is not None:
+    if rule.content is None:
+        # at-rules without a body (e.g. "@import url(x.css);")
+        normalized_content = None
+    elif _has_declaration_body(rule):
+        # e.g. "@font-face" or "@page": the body holds declarations, not rules
+        normalized_content = _normalize_declaration_body(rule.content)
+    else:
+        # the content contains nested rules (like @media)
         content_rules = tinycss2.parse_rule_list(
             rule.content,
             skip_comments=True,
             skip_whitespace=True,
         )
         normalized_content = list(_normalize_rule_list(content_rules))
-    else:
-        normalized_content = None
 
     return AtRule(
         rule.source_line,

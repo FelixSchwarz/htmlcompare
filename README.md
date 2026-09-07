@@ -32,6 +32,7 @@ Implemented Features
 - ordering of CSS classes inside `class` attribute does not matter: `<div class="foo bar" />` is the same as `<div class="bar foo" />`.
 - a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
 - inline style declarations and `<style>` tags are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter
+- at-rules inside `<style>` tags are compared semantically as well - both those containing nested rules (`@media`, `@supports`, `@keyframes`) and those containing declarations (`@font-face`, `@page`, `@counter-style`, …).
 - `0px` is considered equal to `0` in inline CSS.
 - conditional comments (`<!--[if !mso]>...`) are considered when checking for equality. Regular comments will be ignored by default.
 

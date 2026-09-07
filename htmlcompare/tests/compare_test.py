@@ -627,6 +627,68 @@ def test_style_tag_detects_different_media_query_content():
     assert not result.is_equal
 
 
+# --- At-Rules With A Declaration Body ---
+#
+# The body of "@font-face" (and "@page", "@property", ...) contains declarations
+# while the body of "@media" (and "@supports", "@keyframes", ...) contains nested
+# rules. Parsing the former as a rule list yields only tinycss2 parse errors,
+# which used to raise a TypeError when serializing the normalized stylesheet.
+
+@pytest.mark.parametrize('css', [
+    '@font-face { font-family: x; src: url(a.woff2); }',
+    '@page { margin: 1cm; }',
+    '@page :first { margin: 1cm; }',
+    '@viewport { width: device-width; }',
+    '@-ms-viewport { width: device-width; }',
+    '@counter-style x { system: cyclic; symbols: a; }',
+    '@property --x { syntax: "<color>"; inherits: false; }',
+])
+def test_style_tag_with_declaration_body_at_rule_is_equal_to_itself(css):
+    html = f'<style>{css}</style>'
+    assert compare_html(html, html).is_equal
+
+
+def test_style_tag_ignores_declaration_order_inside_font_face():
+    result = compare_html(
+        '<style>@font-face { font-family: x; src: url(a.woff2); }</style>',
+        '<style>@font-face { src:url(a.woff2);font-family:x }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_differences_inside_font_face():
+    result = compare_html(
+        '<style>@font-face { font-family: x; }</style>',
+        '<style>@font-face { font-family: y; }</style>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_with_font_face_nested_in_media_query():
+    result = compare_html(
+        '<style>@media screen { @font-face { font-family: x; } }</style>',
+        '<style>@media screen { @font-face { font-family: x; } }</style>',
+    )
+    assert result.is_equal
+
+    result = compare_html(
+        '<style>@media screen { @font-face { font-family: x; } }</style>',
+        '<style>@media screen { @font-face { font-family: y; } }</style>',
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize('css', [
+    '@media screen { .foo { width: 100%; } }',
+    '@supports (display: grid) { .foo { display: grid; } }',
+    '@keyframes spin { 0% { opacity: 0; } 100% { opacity: 1; } }',
+    '@-webkit-keyframes spin { from { opacity: 0; } }',
+])
+def test_style_tag_still_treats_rule_body_at_rules_as_nested_rules(css):
+    html = f'<style>{css}</style>'
+    assert compare_html(html, html).is_equal
+
+
 # --- Conditional Comment Tests ---
 
 def test_conditional_comment_ignores_whitespace_inside_nested_block_elements():
