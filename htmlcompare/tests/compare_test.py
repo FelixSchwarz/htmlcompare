@@ -627,6 +627,70 @@ def test_style_tag_detects_different_media_query_content():
     assert not result.is_equal
 
 
+# --- Whitespace In Selectors ---
+#
+# Whitespace inside a selector is the descendant combinator, so it must not be
+# stripped: ".a .b" matches a ".b" inside a ".a" while ".a.b" matches a single
+# element carrying both classes.
+
+@pytest.mark.parametrize(('expected_selector', 'actual_selector'), [
+    ('.a .b', '.a.b'),
+    ('#a #b', '#a#b'),
+    ('td .x', 'td.x'),
+    ('a[href] p', 'a[href]p'),
+    ('a b', 'ab'),
+])
+def test_style_tag_detects_missing_descendant_combinator(expected_selector, actual_selector):
+    result = compare_html(
+        f'<style>{expected_selector} {{ color: red; }}</style>',
+        f'<style>{actual_selector} {{ color: red; }}</style>',
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize(('expected_selector', 'actual_selector'), [
+    # whitespace around a combinator is insignificant
+    ('a > b', 'a>b'),
+    ('a  >  b', 'a>b'),
+    ('a + b', 'a+b'),
+    ('a ~ b', 'a~b'),
+    ('a , b', 'a,b'),
+    # ... and so is a longer run of whitespace or a line break
+    ('.a   .b', '.a .b'),
+    ('.a\n.b', '.a .b'),
+    ('  .a .b  ', '.a .b'),
+    ('a > b .c , d', 'a>b .c,d'),
+])
+def test_style_tag_ignores_insignificant_selector_whitespace(expected_selector, actual_selector):
+    result = compare_html(
+        f'<style>{expected_selector} {{ color: red; }}</style>',
+        f'<style>{actual_selector} {{ color: red; }}</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_ignores_insignificant_whitespace_in_at_rule_prelude():
+    result = compare_html(
+        '<style>@media  only   screen { .foo { width: 100%; } }</style>',
+        '<style>@media only screen { .foo { width: 100%; } }</style>',
+    )
+    assert result.is_equal
+
+    result = compare_html(
+        '<style>@media screen , print { .foo { width: 100%; } }</style>',
+        '<style>@media screen,print { .foo { width: 100%; } }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_different_at_rule_prelude():
+    result = compare_html(
+        '<style>@media only screen { .foo { width: 100%; } }</style>',
+        '<style>@media only print { .foo { width: 100%; } }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

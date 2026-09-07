@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: MIT
 
-from collections.abc import Sequence
 import re
+from collections.abc import Container, Iterable, Sequence
 from operator import attrgetter
 
 import tinycss2
-from tinycss2.ast import AtRule, Declaration, Node, NumberToken, QualifiedRule
+from tinycss2.ast import (
+    AtRule,
+    Declaration,
+    Node,
+    NumberToken,
+    QualifiedRule,
+    WhitespaceToken,
+)
 
 
 __all__ = ['compare_css', 'compare_stylesheet']
@@ -22,6 +29,10 @@ _DECLARATION_BODIED_AT_RULES = frozenset({
 })
 
 _VENDOR_PREFIX_RE = re.compile(r'^-[a-z]+-')
+
+# separators in a selector (or at-rule prelude) which do not need surrounding
+# whitespace: "a > b" and "a>b" select the same elements.
+_PRELUDE_SEPARATORS = frozenset({'>', '+', '~', ','})
 
 def compare_css(expected_css, actual_css):
     _e_css = normalize_css(expected_css)
@@ -48,6 +59,45 @@ def _strip_whitespace(all_tokens):
     for token in all_tokens:
         if is_whitespace(token):
             continue
+        tokens.append(token)
+    return tokens
+
+def is_separator(token: Node, separators: Container[str]) -> bool:
+    return (token.type == 'literal') and (token.value in separators)
+
+def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]) -> list[Node]:
+    """
+    Return the tokens with all insignificant whitespace removed.
+
+    Whitespace must not be stripped completely: in a selector it is the
+    descendant combinator, so ".a .b" (a ".b" inside a ".a") and ".a.b" (one
+    element with both classes) are entirely different rules.
+
+    Insignificant is: a run of whitespace (equivalent to a single space),
+    whitespace at the start or the end, and whitespace next to one of
+    "separators" ("a > b" is the same as "a>b").
+    """
+    collapsed = []
+    for token in all_tokens:
+        if is_whitespace(token):
+            if collapsed and is_whitespace(collapsed[-1]):
+                continue
+            token = WhitespaceToken(token.source_line, token.source_column, ' ')
+        collapsed.append(token)
+
+    tokens = []
+    for i, token in enumerate(collapsed):
+        if is_whitespace(token):
+            previous_token = collapsed[i - 1] if (i > 0) else None
+            next_token = collapsed[i + 1] if ((i + 1) < len(collapsed)) else None
+            is_insignificant = (
+                (previous_token is None)
+                or (next_token is None)
+                or is_separator(previous_token, separators)
+                or is_separator(next_token, separators)
+            )
+            if is_insignificant:
+                continue
         tokens.append(token)
     return tokens
 
@@ -129,7 +179,7 @@ def _normalize_rule_list(rules):
 
 def _normalize_qualified_rule(rule):
     """Normalize a qualified rule (selector { declarations })."""
-    prelude = _strip_whitespace(rule.prelude)
+    prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
 
     return QualifiedRule(
         rule.source_line,
@@ -158,7 +208,7 @@ def _has_declaration_body(rule: AtRule) -> bool:
 
 def _normalize_at_rule(rule: AtRule) -> AtRule:
     """Normalize an at-rule (@media, @keyframes, etc.)."""
-    prelude = _strip_whitespace(rule.prelude)
+    prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
 
     if rule.content is None:
         # at-rules without a body (e.g. "@import url(x.css);")

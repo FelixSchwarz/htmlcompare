@@ -33,6 +33,7 @@ Implemented Features
 - a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
 - inline style declarations and `<style>` tags are parsed with an actual CSS parser: ordering, whitespace and trailing semicolons do not matter
 - at-rules inside `<style>` tags are compared semantically as well - both those containing nested rules (`@media`, `@supports`, `@keyframes`) and those containing declarations (`@font-face`, `@page`, `@counter-style`, …).
+- whitespace inside a CSS selector is significant because it is the descendant combinator: `.a .b` is *not* the same as `.a.b`. Whitespace around a combinator (`a > b`) or a comma (`a, b`) does not matter, nor does the length of a whitespace run.
 - `0px` is considered equal to `0` in inline CSS.
 - conditional comments (`<!--[if !mso]>...`) are considered when checking for equality. Regular comments will be ignored by default.
 
