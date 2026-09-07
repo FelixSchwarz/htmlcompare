@@ -5,7 +5,15 @@ from collections.abc import Sequence
 from typing import Optional
 
 from htmlcompare.elements import is_block_element
-from htmlcompare.nodes import Comment, ConditionalComment, Document, Element, Node, TextNode
+from htmlcompare.nodes import (
+    Comment,
+    ConditionalComment,
+    ConditionalCommentMarker,
+    Document,
+    Element,
+    Node,
+    TextNode,
+)
 from htmlcompare.options import CompareOptions
 
 
@@ -91,6 +99,10 @@ def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions)
         return None if options.ignore_comments else node
     elif isinstance(node, ConditionalComment):
         return _normalize_conditional_comment(node, options)
+    elif isinstance(node, ConditionalCommentMarker):
+        # a marker is conditional-comment syntax, not a comment: "ignore_comments"
+        # must not drop it, only "ignore_conditional_comments" may
+        return None if options.ignore_conditional_comments else node
     return node
 
 

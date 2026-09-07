@@ -5,7 +5,16 @@ from dataclasses import dataclass, field
 from typing import Optional, Union
 
 
-__all__ = ['Node', 'Element', 'TextNode', 'Comment', 'ConditionalComment', 'Document', 'Doctype']
+__all__ = [
+    'Node',
+    'Element',
+    'TextNode',
+    'Comment',
+    'ConditionalComment',
+    'ConditionalCommentMarker',
+    'Document',
+    'Doctype',
+]
 
 
 @dataclass
@@ -68,6 +77,33 @@ class ConditionalComment:
         return self.condition == other.condition and self.children == other.children
 
 
+@dataclass(frozen=True)
+class ConditionalCommentMarker:
+    """
+    Represents one marker of a downlevel-revealed conditional comment.
+
+    The downlevel-hidden form encloses its HTML in the comment itself, so it
+    becomes a single `ConditionalComment` node. The revealed form does not -
+    its HTML is visible to every browser and only the two markers are comments:
+
+        <!--[if !mso]><!--><span>x</span><!--<![endif]-->
+
+    html5lib therefore reports two ordinary comments with the enclosed HTML as
+    their sibling. Keep them as siblings as well rather than re-nesting the HTML
+    into a `ConditionalComment`: that matches the DOM and it survives an
+    unbalanced marker, which a real-world document may well contain.
+
+    Example: condition="!mso", is_start=True
+    """
+    condition: str  # always empty for a closing marker
+    is_start: bool
+
+    def __eq__(self, other):
+        if not isinstance(other, ConditionalCommentMarker):
+            return NotImplemented
+        return (self.condition == other.condition) and (self.is_start == other.is_start)
+
+
 @dataclass
 class Element:
     """Represents an HTML element with tag, attributes, and children."""
@@ -100,4 +136,4 @@ class Document:
 
 
 # Type alias for any node type
-Node = Union[Element, TextNode, Comment, ConditionalComment]
+Node = Union[Element, TextNode, Comment, ConditionalComment, ConditionalCommentMarker]

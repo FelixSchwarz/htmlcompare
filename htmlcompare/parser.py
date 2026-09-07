@@ -7,7 +7,16 @@ from typing import Optional, Union
 
 import html5lib
 
-from htmlcompare.nodes import Comment, ConditionalComment, Doctype, Document, Element, TextNode
+from htmlcompare.nodes import (
+    Comment,
+    ConditionalComment,
+    ConditionalCommentMarker,
+    Doctype,
+    Document,
+    Element,
+    Node,
+    TextNode,
+)
 
 
 __all__ = ['parse_html']
@@ -15,6 +24,17 @@ __all__ = ['parse_html']
 
 _CONDITIONAL_START_RE = re.compile(r'^\[if\s+([^\]]+)\]>')
 _CONDITIONAL_END_RE = re.compile(r'<!\[endif\]$')
+
+# Markers of a *downlevel-revealed* conditional comment. Its HTML is not part of
+# the comment, so html5lib reports two ordinary comments with the HTML as their
+# sibling. These patterns match the comment contents html5lib produces (verified):
+#
+#   <!--[if !mso]><!-->   ->  "[if !mso]><!"     <!--<![endif]-->  ->  "<![endif]"
+#   <!--[if !mso]><!---->  ->  "[if !mso]><!--"
+#   <![if !IE]>           ->  "[if !IE]"         <![endif]>        ->  "[endif]"
+_REVEALED_START_RE = re.compile(r'^\[if\s+([^\]]+)\]><!-{0,2}$')
+_REVEALED_RAW_START_RE = re.compile(r'^\[if\s+([^\]]+)\]$')
+_REVEALED_END_RE = re.compile(r'^(?:<!)?\[endif\]$')
 
 # Marker attribute to track self-closing tags through html5lib parsing
 _SELF_CLOSING_MARKER = 'data-htmlcompare-self-closing'
@@ -113,19 +133,19 @@ def _element_to_node(element) -> Element:
     )
 
 
-def _convert_children(element) -> Sequence[Union[Element, TextNode, Comment, ConditionalComment]]:
-    children: list[Union[Element, TextNode, Comment, ConditionalComment]] = []
+def _convert_children(element) -> Sequence[Node]:
+    children: list[Node] = []
     if element.text:
         # leading text before any child elements
         children.append(TextNode(content=element.text))
     for child in element:
         if _is_comment(child):
             comment_content = child.text or ''
-            conditional = _parse_conditional_comment(comment_content)
-            if conditional is not None:
-                children.append(conditional)
-            else:
-                children.append(Comment(content=comment_content))
+            conditional = (
+                _parse_conditional_comment(comment_content)
+                or _parse_conditional_marker(comment_content)
+            )
+            children.append(conditional or Comment(content=comment_content))
         else:
             # regular element
             node = _element_to_node(child)
@@ -161,6 +181,23 @@ def _parse_conditional_comment(content: str) -> Optional[ConditionalComment]:
     # The inner HTML gets wrapped in html/head/body, extract the body children
     inner_children = _extract_body_children(inner_doc)
     return ConditionalComment(condition=condition, children=inner_children)
+
+
+def _parse_conditional_marker(content: str) -> Optional[ConditionalCommentMarker]:
+    """
+    Parse one marker of a downlevel-revealed conditional comment.
+
+    Returns a `ConditionalCommentMarker` node if the content is such a marker,
+    otherwise returns `None`. Both spellings of the opening marker ("<!-->" and
+    "<!---->") produce the same node: they render identically in every browser,
+    so telling them apart would report a difference which is not one.
+    """
+    if _REVEALED_END_RE.match(content):
+        return ConditionalCommentMarker(condition='', is_start=False)
+    start_match = _REVEALED_START_RE.match(content) or _REVEALED_RAW_START_RE.match(content)
+    if start_match is None:
+        return None
+    return ConditionalCommentMarker(condition=start_match.group(1).strip(), is_start=True)
 
 
 def _extract_body_children(doc: Document) -> list:

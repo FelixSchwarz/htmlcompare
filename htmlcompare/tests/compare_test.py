@@ -568,6 +568,96 @@ def test_ignores_regular_comments_but_compares_conditional_by_default():
     assert not result.is_equal
 
 
+# --- Downlevel-Revealed Conditional Comments ---
+#
+# The revealed form does not enclose its HTML in the comment, so html5lib
+# reports two ordinary comments with the HTML as their sibling. Both markers
+# must stay significant: losing one changes which clients display the content.
+
+_REVEALED = '<div><!--[if !mso]><!--><span>x</span><!--<![endif]--></div>'
+
+
+def test_same_downlevel_revealed_conditional_comment_is_equal():
+    assert compare_html(_REVEALED, _REVEALED).is_equal
+
+
+def test_detects_missing_downlevel_revealed_markers():
+    # both markers used to be dropped as ordinary comments, so this compared equal
+    result = compare_html(_REVEALED, '<div><span>x</span></div>')
+    assert not result.is_equal
+
+
+def test_detects_missing_closing_downlevel_revealed_marker():
+    result = compare_html(_REVEALED, '<div><!--[if !mso]><!--><span>x</span></div>')
+    assert not result.is_equal
+
+
+def test_detects_changed_condition_in_downlevel_revealed_marker():
+    result = compare_html(_REVEALED, '<div><!--[if mso]><!--><span>x</span><!--<![endif]--></div>')
+    assert not result.is_equal
+    difference, = [
+        d for d in result.differences
+        if d.type == DifferenceType.CONDITIONAL_COMMENT_MARKER_MISMATCH
+    ]
+    assert difference.expected == '<!--[if !mso]><!-->'
+    assert difference.actual == '<!--[if mso]><!-->'
+
+
+def test_ignores_spelling_of_the_opening_downlevel_revealed_marker():
+    # "<!-->" and "<!---->" render identically in every browser
+    result = compare_html(
+        _REVEALED,
+        '<div><!--[if !mso]><!----><span>x</span><!--<![endif]--></div>',
+    )
+    assert result.is_equal
+
+
+def test_compares_downlevel_revealed_markers_without_a_comment_wrapper():
+    # "<![if !IE]>...<![endif]>" is the form without the outer comment
+    revealed = '<div><![if !IE]><span>x</span><![endif]></div>'
+    assert compare_html(revealed, revealed).is_equal
+    result = compare_html(revealed, '<div><![if !IE]><span>x</span></div>')
+    assert not result.is_equal
+
+
+def test_can_ignore_downlevel_revealed_conditional_comments_when_option_set():
+    opts = CompareOptions(ignore_conditional_comments=True)
+    result = compare_html(_REVEALED, '<div><span>x</span></div>', options=opts)
+    assert result.is_equal
+
+
+def test_downlevel_revealed_markers_are_not_ignored_as_regular_comments():
+    # default is ignore_comments=True, which must not reach a marker
+    result = compare_html(
+        '<div><!-- regular A --><!--[if !mso]><!--><span>x</span><!--<![endif]--></div>',
+        '<div><!-- regular B --><span>x</span></div>',
+    )
+    assert not result.is_equal
+
+
+def test_downlevel_hidden_conditional_comments_are_still_parsed_as_one_node():
+    # the marker patterns must not steal the complete form from the parser
+    result = compare_html(
+        '<div><!--[if IE]><p>old</p><![endif]--></div>',
+        '<div><!--[if IE]><p>new</p><![endif]--></div>',
+    )
+    assert not result.is_equal
+    assert DifferenceType.CONDITIONAL_COMMENT_MARKER_MISMATCH not in {
+        d.type for d in result.differences
+    }
+
+
+def test_downlevel_revealed_conditional_comment_around_a_table():
+    # the mjml-python scenario: the markers decide whether Outlook sees the table
+    expected = (
+        '<!--[if mso | IE]><table><tr><td><![endif]-->'
+        '<div>x</div>'
+        '<!--[if mso | IE]></td></tr></table><![endif]-->'
+    )
+    assert compare_html(expected, expected).is_equal
+    assert not compare_html(expected, '<div>x</div>').is_equal
+
+
 # --- Style Tag CSS Normalization Tests ---
 
 def test_style_tag_ignores_css_whitespace_differences():

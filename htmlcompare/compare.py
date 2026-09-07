@@ -8,6 +8,7 @@ from htmlcompare.elements import is_self_closing_significant
 from htmlcompare.nodes import (
     Comment,
     ConditionalComment,
+    ConditionalCommentMarker,
     Doctype,
     Document,
     Element,
@@ -167,6 +168,9 @@ def _compare_nodes(
     elif isinstance(expected, ConditionalComment):
         assert isinstance(actual, ConditionalComment)
         _compare_conditional_comments(expected, actual, path, differences)
+    elif isinstance(expected, ConditionalCommentMarker):
+        assert isinstance(actual, ConditionalCommentMarker)
+        _compare_conditional_comment_markers(expected, actual, path, differences)
 
 
 def _compare_elements(
@@ -386,6 +390,28 @@ def _compare_conditional_comments(
     _compare_node_lists(expected.children, actual.children, cc_path, differences)
 
 
+def _compare_conditional_comment_markers(
+    expected: ConditionalCommentMarker,
+    actual: ConditionalCommentMarker,
+    path: str,
+    differences: list[Difference],
+) -> None:
+    if expected == actual:
+        return
+    differences.append(Difference(
+        type=DifferenceType.CONDITIONAL_COMMENT_MARKER_MISMATCH,
+        path=path,
+        expected=_marker_summary(expected),
+        actual=_marker_summary(actual),
+    ))
+
+
+def _marker_summary(marker: ConditionalCommentMarker) -> str:
+    if marker.is_start:
+        return f"<!--[if {marker.condition}]><!-->"
+    return "<!--<![endif]-->"
+
+
 def _node_summary(node: Node) -> str:
     if isinstance(node, Element):
         return f"<{node.tag}>"
@@ -397,4 +423,6 @@ def _node_summary(node: Node) -> str:
         return f"comment({content!r})"
     elif isinstance(node, ConditionalComment):
         return f"<!--[if {node.condition}]>..."
+    elif isinstance(node, ConditionalCommentMarker):
+        return _marker_summary(node)
     return str(type(node).__name__)
