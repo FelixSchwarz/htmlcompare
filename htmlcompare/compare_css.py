@@ -50,6 +50,25 @@ def _strip_zero_units(all_tokens):
         tokens.append(token)
     return tokens
 
+def _normalize_declaration(decl):
+    """Return a normalized copy of a tinycss2 ``Declaration``."""
+    tokens = _strip_whitespace(decl.value)
+    tokens = _strip_zero_units(tokens)
+    return Declaration(
+        line       = decl.source_line,
+        column     = decl.source_column,
+        name       = decl.name,
+        lower_name = decl.lower_name,
+        value      = tokens,
+        important  = decl.important
+    )
+
+
+def _sort_declarations(decls):
+    """Sort declarations by name so the comparison is order-independent."""
+    return sorted(decls, key=attrgetter('name'))
+
+
 def normalize_css(css_declaration_str):
     _decls = []
     _css_decls = tinycss2.parse_declaration_list(
@@ -57,20 +76,9 @@ def normalize_css(css_declaration_str):
     )
     for decl in _css_decls:
         assert (decl.type == 'declaration'), decl
-        tokens = _strip_whitespace(decl.value)
-        tokens = _strip_zero_units(tokens)
-        _decl = Declaration(
-            line       = decl.source_line,
-            column     = decl.source_column,
-            name       = decl.name,
-            lower_name = decl.lower_name,
-            value      = tokens,
-            important  = decl.important
-        )
-        _decls.append(_decl)
+        _decls.append(_normalize_declaration(decl))
 
-    sorted_decls = sorted(_decls, key=attrgetter('name'))
-    return tuple(sorted_decls)
+    return tuple(_sort_declarations(_decls))
 
 
 def normalize_stylesheet(css_str):
@@ -115,20 +123,9 @@ def _normalize_qualified_rule(rule):
     normalized_decls = []
     for decl in content_decls:
         if decl.type == 'declaration':
-            tokens = _strip_whitespace(decl.value)
-            tokens = _strip_zero_units(tokens)
-            _decl = Declaration(
-                line       = decl.source_line,
-                column     = decl.source_column,
-                name       = decl.name,
-                lower_name = decl.lower_name,
-                value      = tokens,
-                important  = decl.important
-            )
-            normalized_decls.append(_decl)
+            normalized_decls.append(_normalize_declaration(decl))
 
-    # sort declarations by name for order-independent comparison
-    sorted_decls = sorted(normalized_decls, key=attrgetter('name'))
+    sorted_decls = _sort_declarations(normalized_decls)
 
     return QualifiedRule(
         rule.source_line,
