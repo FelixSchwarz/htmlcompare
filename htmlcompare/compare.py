@@ -35,21 +35,47 @@ def compare_html(
     This implementation uses a tree-based approach with normalization
     to handle insignificant whitespace between block elements.
     """
+    if options is None:
+        options = CompareOptions()
     expected_tree = parse_html(expected_html)
     actual_tree = parse_html(actual_html)
 
     # normalize trees to remove insignificant whitespace
     expected_normalized = normalize_tree(expected_tree, options)
     actual_normalized = normalize_tree(actual_tree, options)
-    return _compare_trees(expected_normalized, actual_normalized)
+    return _compare_trees(expected_normalized, actual_normalized, options)
 
 
-def _compare_trees(expected: Document, actual: Document) -> ComparisonResult:
+def _compare_trees(
+    expected: Document,
+    actual: Document,
+    options: CompareOptions,
+) -> ComparisonResult:
     differences: list[Difference] = []
+    if options.compare_document_prefix:
+        differences += _compare_document_prefixes(expected.prefix, actual.prefix)
     differences += _compare_doctype_declarations(expected.doctype, actual.doctype)
     _compare_node_lists(expected.children, actual.children, "", differences, parent_tag=None)
     _documents_are_equal = (len(differences) == 0)
     return ComparisonResult(is_equal=_documents_are_equal, differences=differences)
+
+
+def _compare_document_prefixes(expected: str, actual: str) -> Iterator[Difference]:
+    """
+    Compare the content preceding the DOCTYPE, e.g. template metadata.
+
+    Only reached with "compare_document_prefix=True". The point of keeping the
+    prefix is exact preservation, so it is compared literally - "normalize_tree()"
+    has already stripped the whitespace separating it from the DOCTYPE.
+    """
+    if expected == actual:
+        return
+    yield Difference(
+        type=DifferenceType.DOCUMENT_PREFIX_MISMATCH,
+        path='PREFIX',
+        expected=expected,
+        actual=actual,
+    )
 
 
 def _compare_doctype_declarations(

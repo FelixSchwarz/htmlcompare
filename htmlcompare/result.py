@@ -30,6 +30,7 @@ class DifferenceType(Enum):
     DOCTYPE_MISMATCH = auto()
     DOCTYPE_MISSING = auto()
     DOCTYPE_EXTRA = auto()
+    DOCUMENT_PREFIX_MISMATCH = auto()
 
 
 @dataclass

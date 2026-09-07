@@ -12,3 +12,6 @@ class CompareOptions:
 
     ignore_conditional_comments: bool = False
     """Whether IE conditional comments should be ignored when comparing for equality."""
+
+    compare_document_prefix: bool = False
+    """Whether content before the DOCTYPE (e.g. template metadata) should be compared."""
