@@ -889,6 +889,60 @@ def test_style_tag_detects_reordered_declarations_of_the_same_family():
     assert not result.is_equal
 
 
+# --- Malformed CSS ---
+#
+# Broken CSS must never raise and must never be dropped: both are worse than
+# reporting a difference. What tinycss2 can not parse is compared literally,
+# scoped as narrowly as the parse result allows.
+
+@pytest.mark.parametrize('css', [
+    'p{color:red}}',
+    'color:red;',
+    '}',
+    '.foo{*zoom:1}',
+    '@media screen{p{color:red}}}',
+])
+def test_style_tag_with_malformed_css_is_equal_to_itself(css):
+    # these used to raise "TypeError: Can not serialize <ParseError invalid>"
+    result = compare_html(f'<style>{css}</style>', f'<style>{css}</style>')
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    # the ParseError is identical for both, only the source text differs
+    ('p{color:red}}', 'p{color:red}]'),
+    ('p{color:red}}', 'p{color:blue}}'),
+    # the IE star hack: invalid CSS which used to be dropped silently
+    ('.foo{*zoom:1}', '.foo{}'),
+    ('.foo{*zoom:1}', '.foo{*zoom:2}'),
+    ('@font-face{*zoom:1}', '@font-face{}'),
+])
+def test_style_tag_detects_differences_in_malformed_css(expected_css, actual_css):
+    result = compare_html(
+        f'<style>{expected_css}</style>',
+        f'<style>{actual_css}</style>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_formatting_of_a_malformed_declaration_block():
+    result = compare_html(
+        '<style>.foo{*zoom:1}</style>',
+        '<style>.foo { *zoom: 1 }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_compares_valid_rules_next_to_a_broken_one_semantically():
+    # only the broken block falls back to a literal comparison, so ".a" is still
+    # compared without regard to declaration order, whitespace or the zero unit
+    result = compare_html(
+        '<style>.a{color:red;margin:0px}.b{*zoom:1}</style>',
+        '<style>.a{margin:0;color: red}.b{*zoom:1}</style>',
+    )
+    assert result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

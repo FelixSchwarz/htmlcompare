@@ -11,6 +11,7 @@ from tinycss2.ast import (
     LiteralToken,
     Node,
     NumberToken,
+    ParseError,
     QualifiedRule,
     WhitespaceToken,
 )
@@ -41,6 +42,13 @@ _PRELUDE_SEPARATORS = frozenset({'>', '+', '~', ','})
 # and CSS requires the whitespace around them (in "calc()" it is mandatory).
 _VALUE_SEPARATORS = frozenset({',', '/'})
 
+# separators in a declaration block which does not parse and is therefore
+# compared literally: ";" ends a declaration and ":" separates name and value,
+# so "color:red;*zoom:1" and "color: red; *zoom: 1" are the same block.
+_BLOCK_SEPARATORS = _VALUE_SEPARATORS | frozenset({':', ';'})
+
+_WHITESPACE_RE = re.compile(r'\s+')
+
 # CSS length units. A zero length may omit its unit ("margin:0" means
 # "margin:0px"), which is not true for any other kind of dimension: "0s" is not
 # a valid <time> and "0deg" is not a valid <angle>.
@@ -65,9 +73,45 @@ def compare_css(expected_css, actual_css):
 
 
 def compare_stylesheet(expected_css, actual_css):
-    _e_css_str = tinycss2.serialize(normalize_stylesheet(expected_css))
-    _a_css_str = tinycss2.serialize(normalize_stylesheet(actual_css))
+    _e_rules = normalize_stylesheet(expected_css)
+    _a_rules = normalize_stylesheet(actual_css)
+    if _contains_parse_error(_e_rules) or _contains_parse_error(_a_rules):
+        return _compare_literally(expected_css, actual_css)
+    _e_css_str = tinycss2.serialize(_e_rules)
+    _a_css_str = tinycss2.serialize(_a_rules)
     return _e_css_str == _a_css_str
+
+
+def _contains_parse_error(rules: Iterable[Node]) -> bool:
+    """Return True if any (possibly nested) rule is a tinycss2 parse error."""
+    for rule in rules:
+        if isinstance(rule, ParseError):
+            return True
+        is_nesting_at_rule = isinstance(rule, AtRule) and (rule.content is not None)
+        if is_nesting_at_rule and _contains_parse_error(rule.content):
+            return True
+    return False
+
+
+def _compare_literally(expected_css: str, actual_css: str) -> bool:
+    """
+    Compare CSS which tinycss2 could not parse into rules.
+
+    A ``ParseError`` carries only "kind" and "message", never the offending
+    source text, so it can not be serialized. Comparing those attributes instead
+    is not an option either: "p{color:red}}" and "p{color:red}]" produce the
+    very same error at the very same position, so different CSS would silently
+    compare equal.
+
+    Compare the input itself instead, ignoring insignificant whitespace. That is
+    stricter than the regular comparison, but it can only ever report a
+    difference which is not one, never miss one.
+    """
+    return _collapse_whitespace(expected_css) == _collapse_whitespace(actual_css)
+
+
+def _collapse_whitespace(css_str: str) -> str:
+    return _WHITESPACE_RE.sub(' ', css_str).strip()
 
 
 def is_whitespace(token):
@@ -228,7 +272,8 @@ def _normalize_rule_list(rules):
             normalized_rule = _normalize_at_rule(rule)
             normalized_rules.append(normalized_rule)
         elif rule.type == 'error':
-            # keep errors for debugging
+            # keep errors: they can not be serialized but compare_stylesheet()
+            # needs them to notice that it must fall back to a literal comparison
             normalized_rules.append(rule)
 
     return tuple(normalized_rules)
@@ -246,14 +291,26 @@ def _normalize_qualified_rule(rule):
     )
 
 
-def _normalize_declaration_body(content: Sequence[Node]) -> list[Declaration]:
-    """Normalize the body of a rule which contains declarations."""
-    decls = tinycss2.parse_declaration_list(
+def _normalize_declaration_body(content: Sequence[Node]) -> list[Node]:
+    """
+    Normalize the body of a rule which contains declarations.
+
+    Anything tinycss2 does not parse into a declaration used to be dropped here,
+    which turned invalid CSS into a false negative: ".foo{*zoom:1}" (the IE star
+    hack, still in use in HTML email) compared equal to ".foo{}" and even to
+    ".foo{*zoom:2}".
+
+    Such a body is compared literally instead - as its tokens, which unlike a
+    ``ParseError`` do carry the source text. The fallback is scoped to the block
+    which actually failed, so a broken rule does not stop the rest of the
+    stylesheet from being compared semantically.
+    """
+    items = tinycss2.parse_declaration_list(
         content, skip_comments=True, skip_whitespace=True
     )
-    normalized_decls = [
-        _normalize_declaration(decl) for decl in decls if decl.type == 'declaration'
-    ]
+    if not all(isinstance(item, Declaration) for item in items):
+        return _normalize_whitespace(content, _BLOCK_SEPARATORS)
+    normalized_decls = [_normalize_declaration(decl) for decl in items]
     return _sort_declarations(normalized_decls)
 
 
