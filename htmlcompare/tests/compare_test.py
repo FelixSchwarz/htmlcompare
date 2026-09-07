@@ -835,6 +835,60 @@ def test_style_tag_detects_zero_time_without_unit():
     assert not result.is_equal
 
 
+# --- Order Of Related Declarations ---
+#
+# Declaration order is ignored so that reformatting a stylesheet does not show
+# up as a difference. It cannot be ignored between related declarations though:
+# "background:red;background-color:blue" renders blue and the reverse renders
+# red.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('background: red; background-color: blue', 'background-color: blue; background: red'),
+    ('margin: 0; margin-top: 5px', 'margin-top: 5px; margin: 0'),
+    # the same property twice: the last one wins, so the order decides
+    ('color: red; color: blue', 'color: blue; color: red'),
+    # a vendor-prefixed property belongs to the family of its plain spelling
+    ('-webkit-transition: all; transition: none', 'transition: none; -webkit-transition: all'),
+    ('--foo: red; --foo: blue', '--foo: blue; --foo: red'),
+])
+def test_detects_reordered_declarations_of_the_same_family(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('color: red; font-size: 12px', 'font-size: 12px; color: red'),
+    ('margin: 0; padding: 0', 'padding: 0; margin: 0'),
+    (
+        'color: red; background: blue; font-size: 12px',
+        'font-size: 12px; color: red; background: blue',
+    ),
+    # two vendor prefixes are unrelated to each other
+    (
+        '-webkit-transform: none; -moz-appearance: none',
+        '-moz-appearance: none; -webkit-transform: none',
+    ),
+    ('--foo: red; --bar: blue', '--bar: blue; --foo: red'),
+])
+def test_ignores_order_of_unrelated_declarations(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_reordered_declarations_of_the_same_family():
+    result = compare_html(
+        '<style>.foo { background: red; background-color: blue; }</style>',
+        '<style>.foo { background-color: blue; background: red; }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

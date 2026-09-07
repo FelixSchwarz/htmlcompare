@@ -2,7 +2,6 @@
 
 import re
 from collections.abc import Container, Iterable, Sequence
-from operator import attrgetter
 
 import tinycss2
 from tinycss2.ast import (
@@ -163,9 +162,33 @@ def _normalize_declaration(decl):
     )
 
 
+def _property_family(decl: Declaration) -> str:
+    """
+    Return the family of related properties a declaration belongs to.
+
+    CSS makes the order of two declarations significant as soon as one of them
+    can override the other: "background:red;background-color:blue" renders blue
+    while the reverse renders red. Grouping by the first segment of the property
+    name keeps a shorthand together with its longhands (and with its
+    vendor-prefixed spellings), so their source order survives the sorting while
+    unrelated properties stay order-independent.
+
+    A custom property is a family of its own: "--" is not a shorthand prefix and
+    the name is case-sensitive.
+    """
+    if decl.name.startswith('--'):
+        return decl.name
+    return _VENDOR_PREFIX_RE.sub('', decl.name).split('-')[0]
+
+
 def _sort_declarations(decls):
-    """Sort declarations by name so the comparison is order-independent."""
-    return sorted(decls, key=attrgetter('name'))
+    """
+    Sort declarations by family so the comparison is order-independent.
+
+    Only *across* families: the sort is stable, so declarations of the same
+    family keep the order they were written in. See "_property_family()".
+    """
+    return sorted(decls, key=_property_family)
 
 
 def normalize_css(css_declaration_str):

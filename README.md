@@ -31,7 +31,8 @@ Implemented Features
 - HTML comments are ignored (yes, also [conditional comments](https://en.wikipedia.org/wiki/Conditional_comment) unfortunately)
 - ordering of CSS classes inside `class` attribute does not matter: `<div class="foo bar" />` is the same as `<div class="bar foo" />`.
 - a `style` or `class` attribute with empty content (e.g. `style=""`) is considered the same as an absent `style`/`class` attribute.
-- inline style declarations and `<style>` tags are parsed with an actual CSS parser: ordering and trailing semicolons do not matter
+- inline style declarations and `<style>` tags are parsed with an actual CSS parser: trailing semicolons do not matter
+- the order of CSS declarations does not matter - except between declarations whose property names begin with the same segment (`background` and `background-color`, but also `font-size` and `font-weight`). CSS makes the order significant as soon as one declaration can override another, so those keep the order they were written in.
 - at-rules inside `<style>` tags are compared semantically as well - both those containing nested rules (`@media`, `@supports`, `@keyframes`) and those containing declarations (`@font-face`, `@page`, `@counter-style`, …).
 - whitespace inside a CSS selector is significant because it is the descendant combinator: `.a .b` is *not* the same as `.a.b`. Whitespace around a combinator (`a > b`) or a comma (`a, b`) does not matter, nor does the length of a whitespace run.
 - whitespace inside a CSS declaration is significant as well because it separates the component values: `font-family: Arial Black` is *not* the same as `font-family: ArialBlack`. Whitespace around a comma or a slash (`font: 12px / 1.5 serif`) does not matter, nor does the length of a whitespace run.
