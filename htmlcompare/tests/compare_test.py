@@ -747,6 +747,51 @@ def test_style_tag_detects_missing_whitespace_in_declaration_value():
     assert not result.is_equal
 
 
+# --- Case Of CSS Property Names ---
+#
+# CSS property names are case-insensitive but custom properties ("--Foo") are
+# not. tinycss2 lowercases custom property names as well, so its "lower_name"
+# must not be used for those.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('COLOR: red', 'color: red'),
+    ('Background-COLOR: blue', 'background-color: blue'),
+    ('-WEBKIT-Box-Shadow: none', '-webkit-box-shadow: none'),
+    # ... even though the case decides where the declaration is sorted
+    ('COLOR: red; FONT-SIZE: 12px', 'font-size: 12px; color: red'),
+])
+def test_ignores_case_of_property_names(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_ignores_case_of_property_names():
+    result = compare_html(
+        '<style>.foo { COLOR: red; }</style>',
+        '<style>.foo { color: red; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_detects_case_difference_in_custom_property_name():
+    result = compare_html(
+        '<div style="--Foo: red"></div>',
+        '<div style="--foo: red"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_detects_case_difference_in_custom_property_name():
+    result = compare_html(
+        '<style>.foo { --Foo: red; }</style>',
+        '<style>.foo { --foo: red; }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

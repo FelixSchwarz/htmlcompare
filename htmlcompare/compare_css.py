@@ -116,6 +116,21 @@ def _strip_zero_units(all_tokens):
         tokens.append(token)
     return tokens
 
+def _property_name(decl: Declaration) -> str:
+    """
+    Return the property name of a declaration as it should be compared.
+
+    CSS property names are case-insensitive, so "COLOR" and "color" are the same
+    property. Custom properties are not: "--Foo" and "--foo" are two distinct
+    properties. tinycss2 lowercases those as well (its "_parse_declaration()"
+    carries a "# TODO: Handle custom property names"), so "lower_name" must not
+    be used for them.
+    """
+    if decl.name.startswith('--'):
+        return decl.name
+    return decl.lower_name
+
+
 def _normalize_declaration(decl):
     """Return a normalized copy of a tinycss2 ``Declaration``."""
     tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
@@ -123,7 +138,7 @@ def _normalize_declaration(decl):
     return Declaration(
         line       = decl.source_line,
         column     = decl.source_column,
-        name       = decl.name,
+        name       = _property_name(decl),
         lower_name = decl.lower_name,
         value      = tokens,
         important  = decl.important

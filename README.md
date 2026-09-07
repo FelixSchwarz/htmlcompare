@@ -35,6 +35,7 @@ Implemented Features
 - at-rules inside `<style>` tags are compared semantically as well - both those containing nested rules (`@media`, `@supports`, `@keyframes`) and those containing declarations (`@font-face`, `@page`, `@counter-style`, …).
 - whitespace inside a CSS selector is significant because it is the descendant combinator: `.a .b` is *not* the same as `.a.b`. Whitespace around a combinator (`a > b`) or a comma (`a, b`) does not matter, nor does the length of a whitespace run.
 - whitespace inside a CSS declaration is significant as well because it separates the component values: `font-family: Arial Black` is *not* the same as `font-family: ArialBlack`. Whitespace around a comma or a slash (`font: 12px / 1.5 serif`) does not matter, nor does the length of a whitespace run.
+- CSS property names are compared case-insensitively: `COLOR: red` is the same as `color: red`. Custom properties are the exception because CSS defines them as case-sensitive: `--Foo` is *not* the same as `--foo`.
 - `0px` is considered equal to `0` in inline CSS.
 - conditional comments (`<!--[if !mso]>...`) are considered when checking for equality. Regular comments will be ignored by default.
 
