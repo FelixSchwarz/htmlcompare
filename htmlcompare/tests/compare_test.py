@@ -691,6 +691,62 @@ def test_style_tag_detects_different_at_rule_prelude():
     assert not result.is_equal
 
 
+# --- Whitespace In Declaration Values ---
+#
+# Whitespace between the component values of a declaration separates them, so it
+# must not be stripped either: "font-family: Arial Black" names a different font
+# than "font-family: ArialBlack". Whitespace around a "," or a "/" is
+# insignificant, just like whitespace around a combinator in a selector.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    # a longer run of whitespace (or a line break) is the same as a single space
+    ('margin: 0 auto', 'margin: 0    auto'),
+    ('border: 1px solid red', 'border: 1px  solid  red'),
+    ('margin: 0 auto', 'margin:0 auto'),
+    # ... and so is whitespace around a separator
+    ('font: 12px / 1.5 serif', 'font: 12px/1.5 serif'),
+    ('grid-area: a / b', 'grid-area: a/b'),
+    ('font-family: Arial , sans-serif', 'font-family: Arial,sans-serif'),
+    ('transition: color .3s ease , opacity .2s', 'transition: color .3s ease,opacity .2s'),
+])
+def test_ignores_insignificant_whitespace_in_declaration_value(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('font-family: Arial Black', 'font-family: ArialBlack'),
+    ('background: url(a.png) no-repeat', 'background: url(a.png)no-repeat'),
+])
+def test_detects_missing_whitespace_in_declaration_value(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_insignificant_whitespace_in_declaration_value():
+    result = compare_html(
+        '<style>.foo { font: 12px / 1.5  Arial Black , sans-serif; }</style>',
+        '<style>.foo { font: 12px/1.5 Arial Black,sans-serif; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_missing_whitespace_in_declaration_value():
+    # two adjacent strings are serialized without a separator, so this used to
+    # compare equal once the whitespace had been stripped
+    result = compare_html(
+        '<style>.foo { content: "a" "b"; }</style>',
+        '<style>.foo { content: "a""b"; }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

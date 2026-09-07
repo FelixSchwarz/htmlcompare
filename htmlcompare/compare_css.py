@@ -35,6 +35,12 @@ _VENDOR_PREFIX_RE = re.compile(r'^-[a-z]+-')
 # whitespace: "a > b" and "a>b" select the same elements.
 _PRELUDE_SEPARATORS = frozenset({'>', '+', '~', ','})
 
+# separators in a declaration value which do not need surrounding whitespace:
+# "font:12px / 1.5 serif" and "font:12px/1.5 serif" declare the same font.
+# "+" and "-" are not in this set: they are arithmetic operators inside a value
+# and CSS requires the whitespace around them (in "calc()" it is mandatory).
+_VALUE_SEPARATORS = frozenset({',', '/'})
+
 def compare_css(expected_css, actual_css):
     _e_css = normalize_css(expected_css)
     _a_css = normalize_css(actual_css)
@@ -55,14 +61,6 @@ def is_dimension(token):
 def is_whitespace(token):
     return (token.type == 'whitespace')
 
-def _strip_whitespace(all_tokens):
-    tokens = []
-    for token in all_tokens:
-        if is_whitespace(token):
-            continue
-        tokens.append(token)
-    return tokens
-
 def is_separator(token: Node, separators: Container[str]) -> bool:
     return isinstance(token, LiteralToken) and (token.value in separators)
 
@@ -72,7 +70,9 @@ def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]
 
     Whitespace must not be stripped completely: in a selector it is the
     descendant combinator, so ".a .b" (a ".b" inside a ".a") and ".a.b" (one
-    element with both classes) are entirely different rules.
+    element with both classes) are entirely different rules. In a declaration
+    value it separates component values, so "margin:0 auto" must not collapse
+    into a single "0auto" token.
 
     Insignificant is: a run of whitespace (equivalent to a single space),
     whitespace at the start or the end, and whitespace next to one of
@@ -118,7 +118,7 @@ def _strip_zero_units(all_tokens):
 
 def _normalize_declaration(decl):
     """Return a normalized copy of a tinycss2 ``Declaration``."""
-    tokens = _strip_whitespace(decl.value)
+    tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
     tokens = _strip_zero_units(tokens)
     return Declaration(
         line       = decl.source_line,
