@@ -36,6 +36,11 @@ _REVEALED_START_RE = re.compile(r'^\[if\s+([^\]]+)\]><!-{0,2}$')
 _REVEALED_RAW_START_RE = re.compile(r'^\[if\s+([^\]]+)\]$')
 _REVEALED_END_RE = re.compile(r'^(?:<!)?\[endif\]$')
 
+# start of the DOCTYPE declaration, which separates the document prefix from the
+# document itself. HTML declares it case-insensitive.
+_DOCTYPE_RE = re.compile(r'<!doctype', re.IGNORECASE)
+_DOCTYPE_BYTES_RE = re.compile(rb'<!doctype', re.IGNORECASE)
+
 # Marker attribute to track self-closing tags through html5lib parsing
 _SELF_CLOSING_MARKER = 'data-htmlcompare-self-closing'
 
@@ -80,13 +85,53 @@ def parse_html(html_string: Union[str, bytes]) -> Document:
     """
     TreeBuilder = html5lib.getTreeBuilder('etree')
     parser = html5lib.HTMLParser(tree=TreeBuilder, namespaceHTMLElements=False)
-    marked_html = _mark_self_closing_tags(html_string)
+    prefix, document_source = _split_document_prefix(html_string)
+    marked_html = _mark_self_closing_tags(document_source)
     parser.parse(marked_html)
 
     doctype = _extract_doctype(parser.tree.document)
     html_element = parser.tree.getDocument()
     html_node = _element_to_node(html_element)
-    return Document(children=[html_node], doctype=doctype)
+    return Document(children=[html_node], doctype=doctype, prefix=prefix)
+
+
+def _split_document_prefix(
+    html_string: Union[str, bytes],
+) -> tuple[str, Union[str, bytes]]:
+    """
+    Split the source into everything before the DOCTYPE and the document itself.
+
+    This is not only about keeping the prefix: character data before the DOCTYPE
+    forces html5lib out of its "initial" insertion mode, so the DOCTYPE is
+    dropped and the document is relocated into "<body>". Removing the prefix
+    first repairs that parse.
+
+        parse_html('{# subject: x #}\n<!doctype html>...').doctype   # None (!)
+
+    Return an *empty* prefix when there is no DOCTYPE at all - the alternative
+    would be to declare every document without one to be a prefix.
+    """
+    if isinstance(html_string, bytes):
+        bytes_match = _DOCTYPE_BYTES_RE.search(html_string)
+        if bytes_match is None:
+            return ('', html_string)
+        start = bytes_match.start()
+        return (_decode_prefix(html_string[:start]), html_string[start:])
+    if not isinstance(html_string, str):
+        raise TypeError("html_string must be str or bytes")
+    match = _DOCTYPE_RE.search(html_string)
+    if match is None:
+        return ('', html_string)
+    return (html_string[:match.start()], html_string[match.start():])
+
+
+def _decode_prefix(prefix: bytes) -> str:
+    try:
+        return prefix.decode('utf-8')
+    except UnicodeDecodeError:
+        # "latin-1" maps every byte to a distinct code point, so no data is lost
+        # and two different prefixes can not decode into the same string
+        return prefix.decode('latin-1')
 
 
 def _extract_doctype(document) -> Optional[Doctype]:

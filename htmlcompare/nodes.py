@@ -129,10 +129,20 @@ class Document:
     children: list['Node'] = field(default_factory=list)
     doctype: Optional['Doctype'] = None
 
+    prefix: str = ''
+    """
+    Everything before the DOCTYPE, e.g. template metadata a generator emitted
+    ahead of the document. Empty when the document has no DOCTYPE at all.
+    """
+
     def __eq__(self, other):
         if not isinstance(other, Document):
             return NotImplemented
-        return self.children == other.children and self.doctype == other.doctype
+        return (
+            self.children == other.children
+            and self.doctype == other.doctype
+            and self.prefix == other.prefix
+        )
 
 
 # Type alias for any node type

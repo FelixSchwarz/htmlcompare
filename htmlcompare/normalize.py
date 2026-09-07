@@ -33,7 +33,13 @@ def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> D
     if options is None:
         options = _DEFAULT_OPTIONS
     normalized_children = _normalize_children(doc.children, in_block_context=True, options=options)
-    return Document(children=normalized_children, doctype=doc.doctype)
+    return Document(
+        children=normalized_children,
+        doctype=doc.doctype,
+        # the point of the prefix is exact preservation, so only the whitespace
+        # separating it from the DOCTYPE is insignificant
+        prefix=doc.prefix.strip(),
+    )
 
 
 def _has_inline_elements(children: Sequence[Node], options: CompareOptions) -> bool:
