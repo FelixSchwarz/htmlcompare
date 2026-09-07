@@ -792,6 +792,49 @@ def test_style_tag_detects_case_difference_in_custom_property_name():
     assert not result.is_equal
 
 
+# --- Zero Lengths ---
+#
+# A zero *length* may omit its unit ("margin: 0" means "margin: 0px"). No other
+# kind of dimension may: "0" is not a valid <time> and not a valid <angle>.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('margin: 0px', 'margin: 0'),
+    ('margin: 0.0px', 'margin: 0'),
+    ('margin: 0.0px', 'margin: 0px'),
+    ('margin: 0em', 'margin: 0'),
+    ('margin: 0Q', 'margin: 0'),
+    ('margin: 0vmin', 'margin: 0'),
+    ('margin: 0 auto', 'margin: 0px auto'),
+])
+def test_ignores_unit_of_zero_lengths(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('transition: all 0s', 'transition: all 0'),
+    ('margin: 0%', 'margin: 0'),
+    ('width: 0%', 'width: 0px'),
+])
+def test_keeps_unit_of_zero_values_which_are_not_lengths(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_detects_zero_time_without_unit():
+    result = compare_html(
+        '<style>.foo { transition: all 0s; }</style>',
+        '<style>.foo { transition: all 0; }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- At-Rules With A Declaration Body ---
 #
 # The body of "@font-face" (and "@page", "@property", ...) contains declarations

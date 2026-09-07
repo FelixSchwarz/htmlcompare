@@ -36,7 +36,7 @@ Implemented Features
 - whitespace inside a CSS selector is significant because it is the descendant combinator: `.a .b` is *not* the same as `.a.b`. Whitespace around a combinator (`a > b`) or a comma (`a, b`) does not matter, nor does the length of a whitespace run.
 - whitespace inside a CSS declaration is significant as well because it separates the component values: `font-family: Arial Black` is *not* the same as `font-family: ArialBlack`. Whitespace around a comma or a slash (`font: 12px / 1.5 serif`) does not matter, nor does the length of a whitespace run.
 - CSS property names are compared case-insensitively: `COLOR: red` is the same as `color: red`. Custom properties are the exception because CSS defines them as case-sensitive: `--Foo` is *not* the same as `--foo`.
-- `0px` is considered equal to `0` in inline CSS.
+- a zero length is considered equal to a bare `0`, no matter how it is written: `margin: 0px`, `margin: 0.0px` and `margin: 0` are all the same. Only lengths may drop their unit though, so `0%`, `0s` and `0deg` are *not* the same as `0`.
 - conditional comments (`<!--[if !mso]>...`) are considered when checking for equality. Regular comments will be ignored by default.
 
 

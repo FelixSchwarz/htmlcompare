@@ -8,6 +8,7 @@ import tinycss2
 from tinycss2.ast import (
     AtRule,
     Declaration,
+    DimensionToken,
     LiteralToken,
     Node,
     NumberToken,
@@ -41,6 +42,21 @@ _PRELUDE_SEPARATORS = frozenset({'>', '+', '~', ','})
 # and CSS requires the whitespace around them (in "calc()" it is mandatory).
 _VALUE_SEPARATORS = frozenset({',', '/'})
 
+# CSS length units. A zero length may omit its unit ("margin:0" means
+# "margin:0px"), which is not true for any other kind of dimension: "0s" is not
+# a valid <time> and "0deg" is not a valid <angle>.
+_LENGTH_UNITS = frozenset({
+    # absolute
+    'cm', 'in', 'mm', 'pc', 'pt', 'px', 'q',
+    # font-relative
+    'cap', 'ch', 'em', 'ex', 'ic', 'lh', 'rcap', 'rch', 'rem', 'rex', 'ric', 'rlh',
+    # viewport-relative
+    'vb', 'vh', 'vi', 'vmax', 'vmin', 'vw',
+    'dvb', 'dvh', 'dvi', 'dvmax', 'dvmin', 'dvw',
+    'lvb', 'lvh', 'lvi', 'lvmax', 'lvmin', 'lvw',
+    'svb', 'svh', 'svi', 'svmax', 'svmin', 'svw',
+})
+
 def compare_css(expected_css, actual_css):
     _e_css = normalize_css(expected_css)
     _a_css = normalize_css(actual_css)
@@ -54,9 +70,6 @@ def compare_stylesheet(expected_css, actual_css):
     _a_css_str = tinycss2.serialize(normalize_stylesheet(actual_css))
     return _e_css_str == _a_css_str
 
-
-def is_dimension(token):
-    return (token.type == 'dimension')
 
 def is_whitespace(token):
     return (token.type == 'whitespace')
@@ -102,17 +115,22 @@ def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]
         tokens.append(token)
     return tokens
 
+def _is_zero_length(token: Node) -> bool:
+    # "isinstance" instead of a check on "token.type": "type" is defined on the
+    # tinycss2 subclasses, not on "Node" itself.
+    if not isinstance(token, DimensionToken):
+        return False
+    # "value" instead of "int_value": the latter is None for "0.0px" (and for
+    # "1e0px", which is not zero at all).
+    return (token.value == 0) and (token.lower_unit in _LENGTH_UNITS)
+
 def _strip_zero_units(all_tokens):
     tokens = []
     for token in all_tokens:
-        if is_dimension(token) and token.int_value == 0:
-            token = NumberToken(
-                token.source_line,
-                token.source_column,
-                token.value,
-                token.int_value,
-                token.representation,
-            )
+        if _is_zero_length(token):
+            # a plain "0", no matter how the zero length was written: "0.0px"
+            # and "0px" must end up with the same representation.
+            token = NumberToken(token.source_line, token.source_column, 0, 0, '0')
         tokens.append(token)
     return tokens
 
