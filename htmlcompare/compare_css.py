@@ -7,13 +7,17 @@ from typing import Optional
 import tinycss2
 from tinycss2.ast import (
     AtRule,
+    CurlyBracketsBlock,
     Declaration,
     DimensionToken,
+    FunctionBlock,
     LiteralToken,
     Node,
     NumberToken,
+    ParenthesesBlock,
     ParseError,
     QualifiedRule,
+    SquareBracketsBlock,
     WhitespaceToken,
 )
 
@@ -158,8 +162,36 @@ def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]
             )
             if is_insignificant:
                 continue
-        tokens.append(token)
+        tokens.append(_normalize_nested_whitespace(token, separators))
     return tokens
+
+
+def _normalize_nested_whitespace(token: Node, separators: Container[str]) -> Node:
+    """
+    Return the token with the whitespace *inside* it normalized as well.
+
+    Whitespace in a function or a bracket block is just as insignificant as at
+    the top level - "rgb(1, 2, 3)" and "rgb(1,2,3)" are the same color - but
+    tinycss2 keeps it in a nested node, which the loop above never looks into.
+
+    The separators carry over unchanged, which is what makes this safe for the
+    two places where whitespace is significant: "+" and "-" are not separators,
+    so "calc(1px + 2px)" keeps the whitespace CSS requires there, and neither is
+    the descendant combinator, so ":not(.a .b)" still differs from ":not(.a.b)".
+    """
+    if isinstance(token, FunctionBlock):
+        arguments = _normalize_whitespace(token.arguments, separators)
+        return FunctionBlock(token.source_line, token.source_column, token.name, arguments)
+    elif isinstance(token, ParenthesesBlock):
+        content = _normalize_whitespace(token.content, separators)
+        return ParenthesesBlock(token.source_line, token.source_column, content)
+    elif isinstance(token, SquareBracketsBlock):
+        content = _normalize_whitespace(token.content, separators)
+        return SquareBracketsBlock(token.source_line, token.source_column, content)
+    elif isinstance(token, CurlyBracketsBlock):
+        content = _normalize_whitespace(token.content, separators)
+        return CurlyBracketsBlock(token.source_line, token.source_column, content)
+    return token
 
 def _is_zero_length(token: Node) -> bool:
     # "isinstance" instead of a check on "token.type": "type" is defined on the

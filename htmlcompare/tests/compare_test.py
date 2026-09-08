@@ -953,6 +953,86 @@ def test_style_tag_detects_missing_whitespace_in_declaration_value():
     assert not result.is_equal
 
 
+# --- Whitespace Inside A Function ---
+#
+# The value normalization used to walk only the top-level tokens, so whitespace
+# CSS ignores stayed significant inside every function.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('color:rgb(1, 2, 3)', 'color:rgb(1,2,3)'),
+    ('color:rgb(1, 2, 3)', 'color:rgb(1,  2, 3)'),
+    ('color:var(--x, red)', 'color:var(--x,red)'),
+    ('background:linear-gradient(to right, red, blue)',
+     'background:linear-gradient(to right,red,blue)'),
+    # leading and trailing whitespace inside the parentheses
+    ('width:calc( 1px + 2px )', 'width:calc(1px + 2px)'),
+    # a slash is a separator in a value, inside a function as well as outside
+    ('width:calc(4px / 2)', 'width:calc(4px/2)'),
+    # nested functions are normalized too
+    ('width:calc(100% - var(--x, 1px))', 'width:calc(100% - var(--x,1px))'),
+])
+def test_ignores_whitespace_inside_a_function(expected_css, actual_css):
+    result = compare_html(
+        f'<p style="{expected_css}">x</p>',
+        f'<p style="{actual_css}">x</p>',
+    )
+    assert result.is_equal
+
+
+def test_keeps_whitespace_required_inside_calc():
+    # CSS requires the whitespace around "+" and "-" in calc(), so removing it
+    # does not produce the same declaration - it produces an invalid one
+    result = compare_html(
+        '<p style="width:calc(1px + 2px)">x</p>',
+        '<p style="width:calc(1px+2px)">x</p>',
+    )
+    assert not result.is_equal
+
+
+def test_does_not_drop_zero_units_inside_a_function():
+    # "calc(0 + 1px)" is invalid where "calc(0px + 1px)" is fine, so the
+    # zero-length normalization must not follow the whitespace one into a function
+    result = compare_html(
+        '<p style="width:calc(0px + 1px)">x</p>',
+        '<p style="width:calc(0 + 1px)">x</p>',
+    )
+    assert not result.is_equal
+
+
+def test_detects_different_values_inside_a_function():
+    result = compare_html(
+        '<p style="background:linear-gradient(to right, red, blue)">x</p>',
+        '<p style="background:linear-gradient(to right, red, green)">x</p>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_whitespace_inside_a_function():
+    result = compare_html(
+        '<style>.foo{color:rgb(1, 2, 3)}</style>',
+        '<style>.foo{color:rgb(1,2,3)}</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_keeps_descendant_combinator_inside_a_selector_function():
+    # the separators carry over into the nested block, and the descendant
+    # combinator is not one of them
+    result = compare_html(
+        '<style>p:not(.a .b){color:red}</style>',
+        '<style>p:not(.a.b){color:red}</style>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_whitespace_around_a_comma_inside_a_selector_function():
+    result = compare_html(
+        '<style>p:not(.a , .b){color:red}</style>',
+        '<style>p:not(.a,.b){color:red}</style>',
+    )
+    assert result.is_equal
+
+
 # --- Case Of CSS Property Names ---
 #
 # CSS property names are case-insensitive but custom properties ("--Foo") are
