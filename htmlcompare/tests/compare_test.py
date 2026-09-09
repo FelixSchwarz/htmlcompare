@@ -1566,6 +1566,43 @@ def test_style_tag_still_treats_rule_body_at_rules_as_nested_rules(css):
     assert compare_html(html, html).is_equal
 
 
+# --- Declarations Inside An At-Rule ---
+#
+# A declaration directly inside "@media" is invalid at the top level of a
+# stylesheet and valid in a nested rule. Either way it must be compared, not
+# dropped: the parser this used to use only knew rules and reported one as a
+# parse error, which downgraded the whole stylesheet to a literal comparison.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('@media screen{color:red}', '@media screen{color: red}'),
+    ('@media screen{color:red}', '@media screen{color:red;}'),
+    ('@media screen{margin:0px}', '@media screen{margin:0}'),
+    ('@supports (a:b){color:red}', '@supports (a:b){color: red}'),
+])
+def test_style_tag_compares_a_declaration_inside_an_at_rule(expected_css, actual_css):
+    result = compare_html(
+        f'<style>{expected_css}</style>',
+        f'<style>{actual_css}</style>',
+    )
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('@media screen{color:red}', '@media screen{color:blue}'),
+    ('@media screen{color:red}', '@media screen{}'),
+    ('@media screen{color:red}', '@media screen{background:red}'),
+    # a declaration next to a rule keeps its place: the order decides which wins
+    ('@media screen{color:red;p{color:blue}}', '@media screen{p{color:blue};color:red}'),
+])
+def test_style_tag_detects_differences_in_a_declaration_inside_an_at_rule(
+        expected_css, actual_css):
+    result = compare_html(
+        f'<style>{expected_css}</style>',
+        f'<style>{actual_css}</style>',
+    )
+    assert not result.is_equal
+
+
 # --- Conditional Comment Tests ---
 
 def test_conditional_comment_ignores_whitespace_inside_nested_block_elements():

@@ -426,7 +426,7 @@ def normalize_css(css_declaration: str) -> Optional[tuple[Declaration, ...]]:
     caller can fall back to a literal comparison.
     """
     _decls = []
-    _css_decls = tinycss2.parse_declaration_list(
+    _css_decls = tinycss2.parse_blocks_contents(
         css_declaration, skip_comments=True, skip_whitespace=True
     )
     for decl in _css_decls:
@@ -465,6 +465,12 @@ def _normalize_rule_list(rules):
         elif rule.type == 'at-rule':
             normalized_rule = _normalize_at_rule(rule)
             normalized_rules.append(normalized_rule)
+        elif rule.type == 'declaration':
+            # a declaration directly inside "@media" - invalid at the top level
+            # of a stylesheet, valid in a nested rule, and a parse error to the
+            # rule list parser this used to use. It keeps its position: mixing
+            # declarations and rules makes the order significant.
+            normalized_rules.append(_normalize_declaration(rule))
         elif rule.type == 'error':
             # keep errors: they can not be serialized but compare_stylesheet()
             # needs them to notice that it must fall back to a literal comparison
@@ -499,7 +505,7 @@ def _normalize_declaration_body(content: Sequence[Node]) -> list[Node]:
     which actually failed, so a broken rule does not stop the rest of the
     stylesheet from being compared semantically.
     """
-    items = tinycss2.parse_declaration_list(
+    items = tinycss2.parse_blocks_contents(
         content, skip_comments=True, skip_whitespace=True
     )
     if not all(isinstance(item, Declaration) for item in items):
@@ -527,7 +533,7 @@ def _normalize_at_rule(rule: AtRule) -> AtRule:
         normalized_content = _normalize_declaration_body(rule.content)
     else:
         # the content contains nested rules (like @media)
-        content_rules = tinycss2.parse_rule_list(
+        content_rules = tinycss2.parse_blocks_contents(
             rule.content,
             skip_comments=True,
             skip_whitespace=True,
