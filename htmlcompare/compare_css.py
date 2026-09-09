@@ -54,6 +54,13 @@ _BLOCK_SEPARATORS = _VALUE_SEPARATORS | frozenset({':', ';'})
 
 _WHITESPACE_RE = re.compile(r'\s+')
 
+# a "ParseError" of one of these two kinds serializes to a fixed placeholder
+# ('"[bad string]' resp. "url([bad url])"), so the offending source text is lost.
+# Every other kind tinycss2 emits inside a token list survives serialization:
+# ")", "]" and "}" write themselves and "eof-in-string"/"eof-in-url" write
+# nothing because the text was already captured by the token before them.
+_LOSSY_ERROR_KINDS = frozenset({'bad-string', 'bad-url'})
+
 # CSS length units. A zero length may omit its unit ("margin:0" means
 # "margin:0px"), which is not true for any other kind of dimension: "0s" is not
 # a valid <time> and "0deg" is not a valid <angle>.
@@ -82,11 +89,16 @@ def compare_css(expected_css: str, actual_css: str) -> bool:
 def compare_stylesheet(expected_css, actual_css):
     _e_rules = normalize_stylesheet(expected_css)
     _a_rules = normalize_stylesheet(actual_css)
-    if _contains_parse_error(_e_rules) or _contains_parse_error(_a_rules):
+    if _must_compare_literally(_e_rules) or _must_compare_literally(_a_rules):
         return _compare_literally(expected_css, actual_css)
     _e_css_str = tinycss2.serialize(_e_rules)
     _a_css_str = tinycss2.serialize(_a_rules)
     return _e_css_str == _a_css_str
+
+
+def _must_compare_literally(rules: Sequence[Node]) -> bool:
+    """Return True if the normalized rules can not be compared as tokens."""
+    return _contains_parse_error(rules) or _contains_lossy_token(rules)
 
 
 def _contains_parse_error(rules: Iterable[Node]) -> bool:
@@ -98,6 +110,44 @@ def _contains_parse_error(rules: Iterable[Node]) -> bool:
         if is_nesting_at_rule and _contains_parse_error(rule.content):
             return True
     return False
+
+
+def _contains_lossy_token(nodes: Iterable[Node]) -> bool:
+    """
+    Return True if any (possibly nested) token loses its source text.
+
+    tinycss2 reports a string containing a raw newline and an unquoted "url()"
+    containing a quote as a ``ParseError`` *token* - one which serializes to a
+    fixed placeholder rather than to the text it stands for. Different CSS
+    therefore serializes identically:
+
+        'a:"x<newline>y' and 'a:"z<newline>y' -> 'a:"[bad string]'
+
+    Such a token is not a formatting difference the comparison may ignore, it is
+    input which can not be compared as tokens at all. The enclosing block has to
+    be compared literally, exactly like CSS which does not parse.
+    """
+    for node in nodes:
+        if isinstance(node, ParseError) and (node.kind in _LOSSY_ERROR_KINDS):
+            return True
+        if _contains_lossy_token(_nested_nodes(node)):
+            return True
+    return False
+
+
+def _nested_nodes(node: Node) -> Sequence[Node]:
+    """Return the nodes inside "node": its tokens, declarations or nested rules."""
+    if isinstance(node, FunctionBlock):
+        return node.arguments
+    elif isinstance(node, (ParenthesesBlock, SquareBracketsBlock, CurlyBracketsBlock)):
+        return node.content
+    elif isinstance(node, Declaration):
+        return node.value
+    elif isinstance(node, QualifiedRule):
+        return [*node.prelude, *node.content]
+    elif isinstance(node, AtRule):
+        return [*node.prelude, *(node.content or ())]
+    return ()
 
 
 def _compare_literally(expected_css: str, actual_css: str) -> bool:
@@ -317,6 +367,8 @@ def normalize_css(css_declaration: str) -> Optional[tuple[Declaration, ...]]:
         # tinycss2 also returns `ParseError` ("color red", "*zoom:1") and
         # `AtRule` ("@media screen{color:red}") objects.
         if not isinstance(decl, Declaration):
+            return None
+        if _contains_lossy_token(decl.value):
             return None
         _decls.append(_normalize_declaration(decl))
 

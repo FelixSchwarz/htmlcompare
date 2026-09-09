@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT
 
 
+import html
+
 import pytest
 
 from htmlcompare.compare import compare_html
@@ -1348,6 +1350,85 @@ def test_compares_other_attributes_next_to_a_malformed_style_attribute():
     assert not result.is_equal
     difference_types = {difference.type for difference in result.differences}
     assert DifferenceType.STYLE_MISMATCH not in difference_types
+
+
+# --- Tokens Which Lose Their Source Text ---
+#
+# tinycss2 reports a string containing a raw newline and an unquoted "url()"
+# containing a quote as a ParseError *token*, and only those two kinds serialize
+# to a fixed placeholder ('"[bad string]' resp. "url([bad url])") instead of to
+# the text they stand for. The enclosing declaration looks perfectly valid, so
+# it never reached the fallback for unparseable CSS: the placeholders compared
+# equal no matter what the source said.
+
+# a string with a raw newline and an unquoted "url()" containing a quote
+_BAD_STRING = 'a:"x\ny'
+_BAD_URL = "a:url(p'q)r"
+
+
+def _style_attribute(css: str) -> str:
+    return f"<p style='{html.escape(css, quote=True)}'>x</p>"
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    (_BAD_STRING, 'a:"z\ny'),
+    (_BAD_URL, "a:url(s't)r"),
+    # ... also when the token sits inside a function
+    ('a:f("x\ny)', 'a:f("z\ny)'),
+    # ... and next to a declaration which parses just fine
+    (f'color:red;{_BAD_STRING}', 'color:red;a:"z\ny'),
+])
+def test_detects_differences_hidden_by_an_unserializable_token(expected_css, actual_css):
+    result = compare_html(
+        _style_attribute(expected_css),
+        _style_attribute(actual_css),
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize('css', [_BAD_STRING, _BAD_URL])
+def test_style_attribute_with_an_unserializable_token_is_equal_to_itself(css):
+    html_str = _style_attribute(css)
+    assert compare_html(html_str, html_str).is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    # in a declaration value
+    ('p{content:"a\nb"}', 'p{content:"z\nb"}'),
+    ("p{a:url(x'y)z}", "p{a:url(q'r)z}"),
+    # in a selector
+    ('p[title="a\n]{color:red}', 'p[title="z\n]{color:red}'),
+    # in an at-rule prelude and in the body of a declaration-bodied at-rule
+    ('@media (x:"a\n){p{color:red}}', '@media (x:"z\n){p{color:red}}'),
+    ("@font-face{src:url(a'b)}", "@font-face{src:url(c'd)}"),
+])
+def test_style_tag_detects_differences_hidden_by_an_unserializable_token(
+        expected_css, actual_css):
+    result = compare_html(
+        f'<style>{expected_css}</style>',
+        f'<style>{actual_css}</style>',
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize('css', [
+    'p{content:"a\nb"}',
+    "p{a:url(x'y)z}",
+    "@font-face{src:url(a'b)}",
+])
+def test_style_tag_with_an_unserializable_token_is_equal_to_itself(css):
+    result = compare_html(f'<style>{css}</style>', f'<style>{css}</style>')
+    assert result.is_equal
+
+
+def test_compares_valid_declarations_next_to_an_unserializable_token_literally():
+    # the fallback is the whole attribute, so the formatting of the valid
+    # declaration next to the broken one becomes significant as well
+    result = compare_html(
+        _style_attribute(f'color:red;{_BAD_STRING}'),
+        _style_attribute(f'color: red;{_BAD_STRING}'),
+    )
+    assert not result.is_equal
 
 
 # --- At-Rules With A Declaration Body ---
