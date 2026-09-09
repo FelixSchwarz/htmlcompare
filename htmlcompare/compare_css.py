@@ -212,6 +212,10 @@ def _strip_zero_units(all_tokens):
         tokens.append(token)
     return tokens
 
+def _is_custom_property(decl: Declaration) -> bool:
+    return decl.name.startswith('--')
+
+
 def _property_name(decl: Declaration) -> str:
     """
     Return the property name of a declaration as it should be compared.
@@ -222,15 +226,43 @@ def _property_name(decl: Declaration) -> str:
     carries a "# TODO: Handle custom property names"), so "lower_name" must not
     be used for them.
     """
-    if decl.name.startswith('--'):
+    if _is_custom_property(decl):
         return decl.name
     return decl.lower_name
 
 
+def _normalize_custom_property_value(all_tokens: Sequence[Node]) -> list[Node]:
+    """
+    Return the value of a custom property with only its outer whitespace removed.
+
+    A custom property does not have a value in the sense the other properties
+    have one: it carries an arbitrary token sequence which CSS preserves as
+    written and "var()" substitutes literally. None of the usual normalization
+    may run on it, because none of it is safe there: "calc(var(--x) + 1px)" is
+    valid for "--x:0px" and invalid for "--x:0", and the substituted text is
+    observable as-is (JavaScript reads it back through
+    "getComputedStyle().getPropertyValue()").
+
+    The one thing CSS does normalize is the whitespace *around* the value: the
+    custom property is defined as the token sequence "with leading and trailing
+    whitespace removed", so "--x: red" and "--x:red" are the same declaration.
+    tinycss2 keeps that whitespace in "Declaration.value".
+    """
+    tokens = list(all_tokens)
+    while tokens and is_whitespace(tokens[0]):
+        tokens.pop(0)
+    while tokens and is_whitespace(tokens[-1]):
+        tokens.pop()
+    return tokens
+
+
 def _normalize_declaration(decl):
     """Return a normalized copy of a tinycss2 ``Declaration``."""
-    tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
-    tokens = _strip_zero_units(tokens)
+    if _is_custom_property(decl):
+        tokens = _normalize_custom_property_value(decl.value)
+    else:
+        tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
+        tokens = _strip_zero_units(tokens)
     return Declaration(
         line       = decl.source_line,
         column     = decl.source_column,
@@ -255,7 +287,7 @@ def _property_family(decl: Declaration) -> str:
     A custom property is a family of its own: "--" is not a shorthand prefix and
     the name is case-sensitive.
     """
-    if decl.name.startswith('--'):
+    if _is_custom_property(decl):
         return decl.name
     return _VENDOR_PREFIX_RE.sub('', decl.name).split('-')[0]
 

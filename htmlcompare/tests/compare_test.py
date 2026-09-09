@@ -1078,6 +1078,71 @@ def test_style_tag_detects_case_difference_in_custom_property_name():
     assert not result.is_equal
 
 
+# --- Values Of Custom Properties ---
+#
+# A custom property carries an arbitrary token sequence which CSS preserves as
+# written and "var()" substitutes literally, so none of the value normalization
+# applies to it. Only the whitespace around the value is insignificant: CSS
+# defines the value as the token sequence with leading and trailing whitespace
+# removed.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    # "calc(var(--x) + 1px)" is valid with "0px" and invalid with "0"
+    ('--x: 0px', '--x: 0'),
+    ('--x: 0.0px', '--x: 0'),
+    ('--x: a  b', '--x: a b'),
+    ('--x: a , b', '--x: a,b'),
+    ('--x: 12px / 1.5', '--x: 12px/1.5'),
+    ('--x: rgb(1, 2, 3)', '--x: rgb(1,2,3)'),
+])
+def test_does_not_normalize_custom_property_values(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('--x: red', '--x:red'),
+    ('--x:red   ', '--x:red'),
+    ('--x:  a b  ', '--x:a b'),
+    # an empty value is valid CSS and stays empty
+    ('--x: ', '--x:'),
+])
+def test_ignores_whitespace_around_custom_property_values(expected_css, actual_css):
+    result = compare_html(
+        f'<div style="{expected_css}"></div>',
+        f'<div style="{actual_css}"></div>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_does_not_normalize_custom_property_values():
+    result = compare_html(
+        '<style>.foo { --x: 0px; }</style>',
+        '<style>.foo { --x: 0; }</style>',
+    )
+    assert not result.is_equal
+
+
+def test_style_tag_ignores_whitespace_around_custom_property_values():
+    result = compare_html(
+        '<style>.foo { --x: red; }</style>',
+        '<style>.foo { --x:red }</style>',
+    )
+    assert result.is_equal
+
+
+# a custom property must not stop the regular declarations from being normalized
+def test_normalizes_regular_declarations_next_to_a_custom_property():
+    result = compare_html(
+        '<div style="--x: 0px; margin: 0px"></div>',
+        '<div style="--x: 0px; margin: 0"></div>',
+    )
+    assert result.is_equal
+
+
 # --- Zero Lengths ---
 #
 # A zero *length* may omit its unit ("margin: 0" means "margin: 0px"). No other
