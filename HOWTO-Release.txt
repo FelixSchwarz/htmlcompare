@@ -2,7 +2,8 @@
 Releases are built by the "Create Release Artifacts" workflow, not locally:
 it runs the test suite against "uv.lock", builds wheel + sdist with the
 hash-pinned build backend from "build-constraints.txt", attests the build
-provenance and attaches the artifacts to the GitHub release.
+provenance, attaches the artifacts to the GitHub release and uploads them to
+pypi via trusted publishing.
 
   1. optional: refresh the pinned dependencies
      $ just update-dependencies
@@ -16,8 +17,8 @@ provenance and attaches the artifacts to the GitHub release.
      $ git tag "v$(cat VERSION.txt)"
      $ git push origin main "v$(cat VERSION.txt)"
 
-  4. download the artifacts from the GitHub release and upload them to pypi
-     $ twine upload dist/*
+  4. approve the deployment to the "pypi" environment in the workflow run,
+     which releases the artifacts to pypi
 
   5. set the next development version in "VERSION.txt" and commit it
 
