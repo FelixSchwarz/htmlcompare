@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 import re
-from collections.abc import Container, Iterable, Sequence
+from collections.abc import Callable, Container, Iterable, Sequence
 from typing import Optional
 
 import tinycss2
@@ -18,8 +18,11 @@ from tinycss2.ast import (
     ParseError,
     QualifiedRule,
     SquareBracketsBlock,
+    StringToken,
+    URLToken,
     WhitespaceToken,
 )
+from tinycss2.serializer import serialize_string_value
 
 
 __all__ = ['compare_css', 'compare_stylesheet']
@@ -171,6 +174,10 @@ def _collapse_whitespace(css_str: str) -> str:
     return _WHITESPACE_RE.sub(' ', css_str).strip()
 
 
+# a normalization pass over a token list, as passed to "_replace_nested_tokens()"
+_Normalize = Callable[[Sequence[Node]], list[Node]]
+
+
 def is_whitespace(token):
     return (token.type == 'whitespace')
 
@@ -190,6 +197,14 @@ def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]
     Insignificant is: a run of whitespace (equivalent to a single space),
     whitespace at the start or the end, and whitespace next to one of
     "separators" ("a > b" is the same as "a>b").
+
+    Whitespace inside a function or a bracket block is just as insignificant -
+    "rgb(1, 2, 3)" and "rgb(1,2,3)" are the same color - so the same separators
+    apply there. Passing them down unchanged is what keeps the recursion safe in
+    the two places where whitespace carries meaning: "+" and "-" are not
+    separators, so "calc(1px + 2px)" keeps the whitespace CSS requires there,
+    and neither is the descendant combinator, so ":not(.a .b)" still differs
+    from ":not(.a.b)".
     """
     collapsed = []
     for token in all_tokens:
@@ -212,34 +227,35 @@ def _normalize_whitespace(all_tokens: Iterable[Node], separators: Container[str]
             )
             if is_insignificant:
                 continue
-        tokens.append(_normalize_nested_whitespace(token, separators))
+        nested = _replace_nested_tokens(
+            token, lambda tokens: _normalize_whitespace(tokens, separators)
+        )
+        tokens.append(nested)
     return tokens
 
 
-def _normalize_nested_whitespace(token: Node, separators: Container[str]) -> Node:
+def _replace_nested_tokens(token: Node, normalize: _Normalize) -> Node:
     """
-    Return the token with the whitespace *inside* it normalized as well.
+    Return the token with "normalize" applied to the tokens *inside* it.
 
-    Whitespace in a function or a bracket block is just as insignificant as at
-    the top level - "rgb(1, 2, 3)" and "rgb(1,2,3)" are the same color - but
-    tinycss2 keeps it in a nested node, which the loop above never looks into.
+    A function and a bracket block carry their tokens in a nested node, which no
+    loop over a token list ever looks into. Only those have nested tokens, every
+    other token is returned unchanged.
 
-    The separators carry over unchanged, which is what makes this safe for the
-    two places where whitespace is significant: "+" and "-" are not separators,
-    so "calc(1px + 2px)" keeps the whitespace CSS requires there, and neither is
-    the descendant combinator, so ":not(.a .b)" still differs from ":not(.a.b)".
+    The nodes are rebuilt rather than mutated: tinycss2 nodes use "__slots__",
+    and the parsed input is not ours to change.
     """
     if isinstance(token, FunctionBlock):
-        arguments = _normalize_whitespace(token.arguments, separators)
+        arguments = normalize(token.arguments)
         return FunctionBlock(token.source_line, token.source_column, token.name, arguments)
     elif isinstance(token, ParenthesesBlock):
-        content = _normalize_whitespace(token.content, separators)
+        content = normalize(token.content)
         return ParenthesesBlock(token.source_line, token.source_column, content)
     elif isinstance(token, SquareBracketsBlock):
-        content = _normalize_whitespace(token.content, separators)
+        content = normalize(token.content)
         return SquareBracketsBlock(token.source_line, token.source_column, content)
     elif isinstance(token, CurlyBracketsBlock):
-        content = _normalize_whitespace(token.content, separators)
+        content = normalize(token.content)
         return CurlyBracketsBlock(token.source_line, token.source_column, content)
     return token
 
@@ -261,6 +277,55 @@ def _strip_zero_units(all_tokens):
             token = NumberToken(token.source_line, token.source_column, 0, 0, '0')
         tokens.append(token)
     return tokens
+
+def _url_value(token: Node) -> Optional[str]:
+    """
+    Return the URL of a "url()" token, no matter which spelling was used.
+
+    CSS writes the same URL in two ways and tinycss2 represents them by two
+    different nodes: "url(a.png)" is a single ``URLToken`` while "url('a.png')"
+    is a ``FunctionBlock`` containing a ``StringToken``. Anything else is not a
+    URL which can be compared as one - "url(var(--x))" for instance is not even
+    a valid url token - so it returns None.
+    """
+    if isinstance(token, URLToken):
+        return token.value
+    is_url_function = isinstance(token, FunctionBlock) and (token.lower_name == 'url')
+    if not is_url_function:
+        return None
+    arguments = [argument for argument in token.arguments if not is_whitespace(argument)]
+    if (len(arguments) == 1) and isinstance(arguments[0], StringToken):
+        return arguments[0].value
+    return None
+
+
+def _normalize_urls(all_tokens: Sequence[Node]) -> list[Node]:
+    """
+    Return the tokens with every "url()" written the same way.
+
+    "background:url(a.png)" and "background:url('a.png')" declare the same
+    background, and so does the upper case "URL(a.png)" - CSS function names are
+    case-insensitive. Every spelling is rewritten into the quoted form, which is
+    the one that can hold any URL: the unquoted form has to escape a quote, a
+    space or a parenthesis.
+    """
+    tokens = []
+    for token in all_tokens:
+        url = _url_value(token)
+        if url is not None:
+            token = _quoted_url(token, url)
+        else:
+            token = _replace_nested_tokens(token, _normalize_urls)
+        tokens.append(token)
+    return tokens
+
+
+def _quoted_url(token: Node, url: str) -> FunctionBlock:
+    """Return a "url()" holding "url" as a double-quoted string."""
+    representation = f'"{serialize_string_value(url)}"'
+    string = StringToken(token.source_line, token.source_column, url, representation)
+    return FunctionBlock(token.source_line, token.source_column, 'url', [string])
+
 
 def _is_custom_property(decl: Declaration) -> bool:
     return decl.name.startswith('--')
@@ -313,6 +378,7 @@ def _normalize_declaration(decl):
     else:
         tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
         tokens = _strip_zero_units(tokens)
+        tokens = _normalize_urls(tokens)
     return Declaration(
         line       = decl.source_line,
         column     = decl.source_column,
@@ -450,7 +516,8 @@ def _has_declaration_body(rule: AtRule) -> bool:
 
 def _normalize_at_rule(rule: AtRule) -> AtRule:
     """Normalize an at-rule (@media, @keyframes, etc.)."""
-    prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
+    # "@import url(a.css)" is the one prelude which can contain a URL
+    prelude = _normalize_urls(_normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS))
 
     if rule.content is None:
         # at-rules without a body (e.g. "@import url(x.css);")

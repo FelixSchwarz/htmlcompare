@@ -10,6 +10,11 @@ from htmlcompare.options import CompareOptions
 from htmlcompare.result import DifferenceType
 
 
+def _style_attribute(css: str) -> str:
+    """Return an element whose "style" attribute holds "css", quotes and all."""
+    return f"<p style='{html.escape(css, quote=True)}'>x</p>"
+
+
 def test_identical_documents_are_equal():
     result = compare_html('<div></div>', '<div></div>')
     assert result.is_equal
@@ -1145,6 +1150,78 @@ def test_normalizes_regular_declarations_next_to_a_custom_property():
     assert result.is_equal
 
 
+# --- Quoting Of url() ---
+#
+# The URL in a "url()" may be quoted or not, and the function name is
+# case-insensitive like every other one. tinycss2 represents the unquoted
+# spelling by a URLToken and the quoted one by a function containing a string,
+# which never compare equal.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('background: url("a.png")', 'background: url(a.png)'),
+    ("background: url('a.png')", 'background: url(a.png)'),
+    ('background: URL(a.png)', 'background: url("a.png")'),
+    ('background: url( "a.png" )', 'background: url(a.png)'),
+    ('background: url()', 'background: url("")'),
+    # only the unquoted spelling has to escape a space
+    (r'background: url(a\ b.png)', 'background: url("a b.png")'),
+    # ... and the same inside another function
+    ('background: image-set(url("a.png") 1x)', 'background: image-set(url(a.png) 1x)'),
+])
+def test_ignores_quoting_of_urls(expected_css, actual_css):
+    result = compare_html(
+        _style_attribute(expected_css),
+        _style_attribute(actual_css),
+    )
+    assert result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('background: url("a.png")', 'background: url(b.png)'),
+    # a URL is case-sensitive, the function name around it is not
+    ('background: url("a.png")', 'background: URL(A.png)'),
+    # a function which only looks like one
+    ('background: src("a.png")', 'background: src(a.png)'),
+])
+def test_detects_different_urls(expected_css, actual_css):
+    result = compare_html(
+        _style_attribute(expected_css),
+        _style_attribute(actual_css),
+    )
+    assert not result.is_equal
+
+
+def test_keeps_url_quoting_in_a_custom_property_value():
+    # a custom property is substituted literally, so its value stays verbatim
+    result = compare_html(
+        _style_attribute('--x: url(a.png)'),
+        _style_attribute('--x: url("a.png")'),
+    )
+    assert not result.is_equal
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('p { background: url(a.png) }', 'p { background: url("a.png") }'),
+    ('@font-face { src: url(a.woff2) }', '@font-face { src: url("a.woff2") }'),
+    # the one prelude which can contain a URL
+    ('@import url(a.css);', '@import url("a.css");'),
+])
+def test_style_tag_ignores_quoting_of_urls(expected_css, actual_css):
+    result = compare_html(
+        f'<style>{expected_css}</style>',
+        f'<style>{actual_css}</style>',
+    )
+    assert result.is_equal
+
+
+def test_style_tag_detects_different_urls():
+    result = compare_html(
+        '<style>p { background: url(a.png) }</style>',
+        '<style>p { background: url("b.png") }</style>',
+    )
+    assert not result.is_equal
+
+
 # --- Zero Lengths ---
 #
 # A zero *length* may omit its unit ("margin: 0" means "margin: 0px"). No other
@@ -1364,10 +1441,6 @@ def test_compares_other_attributes_next_to_a_malformed_style_attribute():
 # a string with a raw newline and an unquoted "url()" containing a quote
 _BAD_STRING = 'a:"x\ny'
 _BAD_URL = "a:url(p'q)r"
-
-
-def _style_attribute(css: str) -> str:
-    return f"<p style='{html.escape(css, quote=True)}'>x</p>"
 
 
 @pytest.mark.parametrize(('expected_css', 'actual_css'), [
