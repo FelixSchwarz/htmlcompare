@@ -1034,6 +1034,43 @@ def test_does_not_normalize_dimension_units_in_a_custom_property():
     assert not compare_css('--x: 1PX', '--x: 1px')
 
 
+# --- Case Of Function Names ---
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('color: RGB(255, 0, 0)', 'color: rgb(255,0,0)'),
+    ('filter: DROP-SHADOW(0 0 1px black)', 'filter: drop-shadow(0 0 1px black)'),
+    ('color: COLOR-MIX(in srgb, RGB(255,0,0), blue)',
+     'color: color-mix(in srgb, rgb(255,0,0), blue)'),
+    ('background: URL(a.png)', 'background: url("a.png")'),
+])
+def test_compare_css_ignores_case_of_function_names(expected_css, actual_css):
+    assert compare_css(expected_css, actual_css)
+
+
+@pytest.mark.parametrize(('expected_html', 'actual_html'), [
+    ('<p style="color:RGB(255,0,0)">x</p>',
+     '<p style="color:rgb(255,0,0)">x</p>'),
+    ('<style>p{color:RGB(255,0,0)}</style>',
+     '<style>p{color:rgb(255,0,0)}</style>'),
+    ('<style>p:NOT(.a,.b){color:red}</style>',
+     '<style>p:not(.a,.b){color:red}</style>'),
+])
+def test_compare_html_ignores_case_of_function_names(expected_html, actual_html):
+    assert compare_html(expected_html, actual_html).is_equal
+
+
+def test_keeps_case_of_custom_function_names():
+    assert not compare_css('width: --Foo(1px)', 'width: --foo(1px)')
+
+
+def test_does_not_normalize_function_names_in_a_custom_property():
+    assert not compare_css('--x: RGB(1,2,3)', '--x: rgb(1,2,3)')
+
+
+def test_does_not_normalize_function_names_in_a_malformed_declaration_body():
+    assert not compare_stylesheet('p{*zoom:RGB(1)}', 'p{*zoom:rgb(1)}')
+
+
 # --- Whitespace Inside A Function ---
 #
 # The value normalization used to walk only the top-level tokens, so whitespace

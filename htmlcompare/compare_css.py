@@ -317,6 +317,20 @@ def _normalize_numbers(all_tokens: Sequence[Node]) -> list[Node]:
     return tokens
 
 
+def _normalize_function_names(all_tokens: Sequence[Node]) -> list[Node]:
+    """Return tokens with ordinary CSS function names in lower case."""
+    tokens = []
+    for token in all_tokens:
+        if isinstance(token, FunctionBlock):
+            name = token.name if token.name.startswith('--') else token.lower_name
+            arguments = _normalize_function_names(token.arguments)
+            token = FunctionBlock(token.source_line, token.source_column, name, arguments)
+        else:
+            token = _replace_nested_tokens(token, _normalize_function_names)
+        tokens.append(token)
+    return tokens
+
+
 def _is_zero_length(token: Node) -> bool:
     # "isinstance" instead of a check on "token.type": "type" is defined on the
     # tinycss2 subclasses, not on "Node" itself.
@@ -436,6 +450,7 @@ def _normalize_declaration(decl):
     else:
         tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
         tokens = _normalize_numbers(tokens)
+        tokens = _normalize_function_names(tokens)
         tokens = _strip_zero_units(tokens)
         tokens = _normalize_urls(tokens)
     return Declaration(
@@ -542,6 +557,7 @@ def _normalize_qualified_rule(rule):
     """Normalize a qualified rule (selector { declarations })."""
     prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
     prelude = _normalize_numbers(prelude)
+    prelude = _normalize_function_names(prelude)
 
     return QualifiedRule(
         rule.source_line,
@@ -585,6 +601,7 @@ def _normalize_at_rule(rule: AtRule) -> AtRule:
     # "@import url(a.css)" is the one prelude which can contain a URL
     prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
     prelude = _normalize_numbers(prelude)
+    prelude = _normalize_function_names(prelude)
     prelude = _normalize_urls(prelude)
 
     if rule.content is None:
