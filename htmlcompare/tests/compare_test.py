@@ -6,6 +6,7 @@ import html
 import pytest
 
 from htmlcompare.compare import compare_html
+from htmlcompare.compare_css import compare_css, compare_stylesheet
 from htmlcompare.options import CompareOptions
 from htmlcompare.result import DifferenceType
 
@@ -958,6 +959,56 @@ def test_style_tag_detects_missing_whitespace_in_declaration_value():
         '<style>.foo { content: "a""b"; }</style>',
     )
     assert not result.is_equal
+
+
+# --- Numeric Token Representations ---
+#
+# tinycss2 retains the source spelling of a number separately from its parsed
+# value. CSS treats spellings with the same value and numeric category alike.
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('opacity: +.5', 'opacity: 0.5'),
+    ('width: 05e-1%', 'width: .5%'),
+    ('margin: +.5e0px', 'margin: 0.5px'),
+    ('opacity: 0.50000000000000001', 'opacity: .500000000000000010'),
+])
+def test_compare_css_ignores_numeric_token_representation(expected_css, actual_css):
+    assert compare_css(expected_css, actual_css)
+
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('<p style="opacity:+.5">x</p>', '<p style="opacity:0.5">x</p>'),
+    ('<style>p{width:05e-1%}</style>', '<style>p{width:.5%}</style>'),
+    ('<style>p:nth-child(+01){color:red}</style>',
+     '<style>p:nth-child(1){color:red}</style>'),
+    ('<style>p{width:calc(.5px + 1px)}</style>',
+     '<style>p{width:calc(0.5px + 1px)}</style>'),
+])
+def test_compare_html_ignores_numeric_token_representation(expected_css, actual_css):
+    assert compare_html(expected_css, actual_css).is_equal
+
+
+def test_keeps_integer_and_non_integer_number_tokens_distinct():
+    assert not compare_css('z-index: 1', 'z-index: 1.0')
+
+
+def test_does_not_merge_distinct_numbers_beyond_float_precision():
+    assert not compare_css(
+        'opacity: 0.50000000000000001',
+        'opacity: 0.50000000000000002',
+    )
+
+
+def test_does_not_merge_distinct_numbers_after_float_overflow():
+    assert not compare_css('width: 1e999px', 'width: 2e999px')
+
+
+def test_does_not_normalize_numbers_in_a_custom_property():
+    assert not compare_css('--x: .5px', '--x: 0.5px')
+
+
+def test_does_not_normalize_numbers_in_a_malformed_declaration_body():
+    assert not compare_stylesheet('p{*zoom:.5}', 'p{*zoom:0.5}')
 
 
 # --- Whitespace Inside A Function ---

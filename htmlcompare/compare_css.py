@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Callable, Container, Iterable, Sequence
+from decimal import Decimal
 from typing import Optional
 
 import tinycss2
@@ -16,6 +17,7 @@ from tinycss2.ast import (
     NumberToken,
     ParenthesesBlock,
     ParseError,
+    PercentageToken,
     QualifiedRule,
     SquareBracketsBlock,
     StringToken,
@@ -259,6 +261,62 @@ def _replace_nested_tokens(token: Node, normalize: _Normalize) -> Node:
         return CurlyBracketsBlock(token.source_line, token.source_column, content)
     return token
 
+
+def _canonical_number_representation(representation: str, int_value: Optional[int]) -> str:
+    """Return one spelling of a parsed CSS number without changing its category."""
+    if int_value is not None:
+        return str(int_value)
+
+    value = Decimal(representation).normalize()
+    if value == 0:
+        return '0.0'
+    canonical = str(value).lower()
+    if ('.' not in canonical) and ('e' not in canonical):
+        canonical += '.0'
+    return canonical
+
+
+def _normalize_numbers(all_tokens: Sequence[Node]) -> list[Node]:
+    """Return tokens with equivalent numeric representations written alike."""
+    tokens = []
+    for token in all_tokens:
+        representation = None
+        if isinstance(token, (NumberToken, PercentageToken, DimensionToken)):
+            representation = _canonical_number_representation(
+                token.representation, token.int_value
+            )
+
+        if isinstance(token, NumberToken):
+            token = NumberToken(
+                token.source_line,
+                token.source_column,
+                token.value,
+                token.int_value,
+                representation,
+            )
+        elif isinstance(token, PercentageToken):
+            token = PercentageToken(
+                token.source_line,
+                token.source_column,
+                token.value,
+                token.int_value,
+                representation,
+            )
+        elif isinstance(token, DimensionToken):
+            token = DimensionToken(
+                token.source_line,
+                token.source_column,
+                token.value,
+                token.int_value,
+                representation,
+                token.unit,
+            )
+        else:
+            token = _replace_nested_tokens(token, _normalize_numbers)
+        tokens.append(token)
+    return tokens
+
+
 def _is_zero_length(token: Node) -> bool:
     # "isinstance" instead of a check on "token.type": "type" is defined on the
     # tinycss2 subclasses, not on "Node" itself.
@@ -377,6 +435,7 @@ def _normalize_declaration(decl):
         tokens = _normalize_custom_property_value(decl.value)
     else:
         tokens = _normalize_whitespace(decl.value, _VALUE_SEPARATORS)
+        tokens = _normalize_numbers(tokens)
         tokens = _strip_zero_units(tokens)
         tokens = _normalize_urls(tokens)
     return Declaration(
@@ -482,6 +541,7 @@ def _normalize_rule_list(rules):
 def _normalize_qualified_rule(rule):
     """Normalize a qualified rule (selector { declarations })."""
     prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
+    prelude = _normalize_numbers(prelude)
 
     return QualifiedRule(
         rule.source_line,
@@ -523,7 +583,9 @@ def _has_declaration_body(rule: AtRule) -> bool:
 def _normalize_at_rule(rule: AtRule) -> AtRule:
     """Normalize an at-rule (@media, @keyframes, etc.)."""
     # "@import url(a.css)" is the one prelude which can contain a URL
-    prelude = _normalize_urls(_normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS))
+    prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
+    prelude = _normalize_numbers(prelude)
+    prelude = _normalize_urls(prelude)
 
     if rule.content is None:
         # at-rules without a body (e.g. "@import url(x.css);")
