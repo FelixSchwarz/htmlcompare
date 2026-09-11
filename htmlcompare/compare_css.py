@@ -598,6 +598,10 @@ def _has_declaration_body(rule: AtRule) -> bool:
 
 def _normalize_at_rule(rule: AtRule) -> AtRule:
     """Normalize an at-rule (@media, @keyframes, etc.)."""
+    at_keyword = (
+        rule.at_keyword if rule.at_keyword.startswith('--') else rule.lower_at_keyword
+    )
+
     # "@import url(a.css)" is the one prelude which can contain a URL
     prelude = _normalize_whitespace(rule.prelude, _PRELUDE_SEPARATORS)
     prelude = _normalize_numbers(prelude)
@@ -622,7 +626,7 @@ def _normalize_at_rule(rule: AtRule) -> AtRule:
     return AtRule(
         rule.source_line,
         rule.source_column,
-        rule.at_keyword,
+        at_keyword,
         rule.lower_at_keyword,
         prelude,
         normalized_content,

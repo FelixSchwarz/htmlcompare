@@ -905,6 +905,34 @@ def test_style_tag_detects_different_at_rule_prelude():
     assert not result.is_equal
 
 
+# --- Case Of At-Rule Names ---
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('@IMPORT url(a.css);', '@import url("a.css");'),
+    ('@MEDIA screen { p { color: red } }', '@media screen { p { color:red } }'),
+    ('@FONT-FACE { font-family: x; src: url(a.woff2) }',
+     '@font-face { src:url(a.woff2);font-family:x }'),
+    ('@-MS-VIEWPORT { width: device-width }',
+     '@-ms-viewport { width:device-width }'),
+    ('@MEDIA screen { @SUPPORTS (display: grid) { p { color: red } } }',
+     '@media screen { @supports (display: grid) { p { color:red } } }'),
+])
+def test_compare_stylesheet_ignores_case_of_at_rule_names(expected_css, actual_css):
+    assert compare_stylesheet(expected_css, actual_css)
+
+
+def test_compare_html_ignores_case_of_at_rule_names():
+    result = compare_html(
+        '<style>@MEDIA screen { p { color: red } }</style>',
+        '<style>@media screen { p { color:red } }</style>',
+    )
+    assert result.is_equal
+
+
+def test_keeps_case_of_custom_at_rule_names():
+    assert not compare_stylesheet('@--Foo {}', '@--foo {}')
+
+
 # --- Whitespace In Declaration Values ---
 #
 # Whitespace between the component values of a declaration separates them, so it
