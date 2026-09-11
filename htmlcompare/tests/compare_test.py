@@ -343,7 +343,7 @@ def test_style_zero_with_and_without_unit():
     assert result.is_equal
 
 
-@pytest.mark.xfail(reason="shorthand hex color matching not yet implemented")
+@pytest.mark.xfail(reason="hex color expansion requires property-aware CSS comparison")
 def test_can_handle_shorthand_hex_colors():
     result = compare_html(
         '<div style="color: #f60;"></div>',

@@ -48,9 +48,10 @@ What is ignored
 - HTML comments
 - the formatting of CSS. `style` attributes and `<style>` tags are parsed with a
   real CSS parser, so trailing semicolons, the order of declarations, the case of
-  property and function names, the spelling of a URL (`url(a.png)`,
-  `url("a.png")`), a unit on a zero length and any whitespace CSS has no use for
-  do not matter. At-rules (`@media`, `@font-face`, …) are compared the same way.
+  property, function and at-rule names, equivalent numeric spellings (`.5px`,
+  `0.5px`), the case of dimension units (`1PX`, `1px`), the spelling of a URL
+  (`url(a.png)`, `url("a.png")`), a unit on a zero length and any whitespace CSS
+  has no use for do not matter.
 
 
 What is a difference
@@ -63,8 +64,9 @@ the same thing. Where the meaning can change, the documents differ:
   and not `.a.b`, `font-family: Arial Black` is not `font-family: ArialBlack`
 - the order of declarations which can override each other, such as `background`
   and `background-color`
-- custom properties, whose names are case-sensitive and whose values `var()`
-  substitutes literally: `--x: 0px` is not the same as `--x: 0`
+- custom CSS syntax beginning with `--`, whose names are case-sensitive, and
+  custom-property values, which `var()` substitutes literally: `--x: 0px` is
+  not the same as `--x: 0`
 - [conditional comments](https://en.wikipedia.org/wiki/Conditional_comment) in
   both their forms, because dropping one changes which clients display the
   content
