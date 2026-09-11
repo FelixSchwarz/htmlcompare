@@ -309,7 +309,7 @@ def _normalize_numbers(all_tokens: Sequence[Node]) -> list[Node]:
                 token.value,
                 token.int_value,
                 representation,
-                token.unit,
+                token.lower_unit,
             )
         else:
             token = _replace_nested_tokens(token, _normalize_numbers)

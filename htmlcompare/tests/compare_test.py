@@ -1011,6 +1011,29 @@ def test_does_not_normalize_numbers_in_a_malformed_declaration_body():
     assert not compare_stylesheet('p{*zoom:.5}', 'p{*zoom:0.5}')
 
 
+# --- Case Of Dimension Units ---
+
+@pytest.mark.parametrize(('expected_css', 'actual_css'), [
+    ('margin: 1PX', 'margin: 1px'),
+    ('animation-delay: 2S', 'animation-delay: 2s'),
+    ('width: calc(1REM + 2px)', 'width: calc(1rem + 2px)'),
+])
+def test_compare_css_ignores_case_of_dimension_units(expected_css, actual_css):
+    assert compare_css(expected_css, actual_css)
+
+
+def test_style_tag_ignores_case_of_dimension_units():
+    result = compare_html(
+        '<style>p { margin: 1PX; }</style>',
+        '<style>p { margin: 1px; }</style>',
+    )
+    assert result.is_equal
+
+
+def test_does_not_normalize_dimension_units_in_a_custom_property():
+    assert not compare_css('--x: 1PX', '--x: 1px')
+
+
 # --- Whitespace Inside A Function ---
 #
 # The value normalization used to walk only the top-level tokens, so whitespace
