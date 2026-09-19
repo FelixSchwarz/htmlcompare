@@ -51,12 +51,7 @@ def _has_inline_elements(children: Sequence[Node], options: CompareOptions) -> b
 
     Note: This checks what will remain AFTER normalization (comments removed).
     """
-    for child in children:
-        # skip comments that will be removed
-        if isinstance(child, Comment) and options.ignore_comments:
-            continue
-        if isinstance(child, ConditionalComment) and options.ignore_conditional_comments:
-            continue
+    for child in _filter_ignored_nodes(children, options):
         if isinstance(child, Element):
             if not is_block_element(child.tag):
                 return True
@@ -83,11 +78,27 @@ def _normalize_children(
     options: CompareOptions,
 ) -> list[Node]:
     result: list[Node] = []
-    for child in children:
+    for child in _filter_ignored_nodes(children, options):
         normalized = _normalize_node(child, in_block_context, options)
         if normalized is not None:
             result.append(normalized)
     return result
+
+
+def _filter_ignored_nodes(
+    children: Sequence[Node],
+    options: CompareOptions,
+) -> list[Node]:
+    """Return the children which participate in normalization and comparison."""
+    return [child for child in children if not _should_ignore_node(child, options)]
+
+
+def _should_ignore_node(node: Node, options: CompareOptions) -> bool:
+    if isinstance(node, Comment):
+        return options.ignore_comments
+    if isinstance(node, (ConditionalComment, ConditionalCommentMarker)):
+        return options.ignore_conditional_comments
+    return False
 
 
 def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions) -> Optional[Node]:
@@ -142,19 +153,7 @@ def _normalize_text_node(node: TextNode, in_block_context: bool) -> Optional[Tex
 
 def _normalize_element(element: Element, options: CompareOptions) -> Element:
     """Normalize an element and its children."""
-    # Determine if children are in block context or inline context.
-    # Whitespace is significant (inline context) if:
-    # 1. The element is inline (not a block element)
-    # 2. OR the element contains inline elements AND significant text as children
-    #
-    # If a block element contains only inline elements (no text), or only text
-    # (no inline elements), we can strip leading/trailing whitespace.
-    # Whitespace only matters when text is ADJACENT to inline elements.
-    has_inline_children = _has_inline_elements(element.children, options)
-    has_text_content = _has_significant_text(element.children, options)
-    # Whitespace is significant only when there's both inline elements AND text
-    inline_context = has_inline_children and has_text_content
-    children_in_block_context = is_block_element(element.tag) and not inline_context
+    children_in_block_context = _children_are_in_block_context(element, options)
 
     normalized_children = _normalize_children(
         element.children,
@@ -168,6 +167,23 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
         children=normalized_children,
         is_self_closing=element.is_self_closing,
     )
+
+
+def _children_are_in_block_context(element: Element, options: CompareOptions) -> bool:
+    """Return the whitespace mode used by the current element heuristic."""
+    # Determine if children are in block context or inline context.
+    # Whitespace is significant (inline context) if:
+    # 1. The element is inline (not a block element)
+    # 2. OR the element contains inline elements AND significant text as children
+    #
+    # If a block element contains only inline elements (no text), or only text
+    # (no inline elements), we can strip leading/trailing whitespace.
+    # Whitespace only matters when text is ADJACENT to inline elements.
+    has_inline_children = _has_inline_elements(element.children, options)
+    has_text_content = _has_significant_text(element.children, options)
+    # Whitespace is significant only when there's both inline elements AND text
+    inline_context = has_inline_children and has_text_content
+    return is_block_element(element.tag) and not inline_context
 
 
 def _normalize_conditional_comment(
