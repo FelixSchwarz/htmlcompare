@@ -4,7 +4,7 @@ import re
 from collections.abc import Sequence
 from typing import Optional
 
-from htmlcompare.elements import is_block_element
+from htmlcompare.elements import is_block_element, is_forced_line_break
 from htmlcompare.nodes import (
     Comment,
     ConditionalComment,
@@ -32,7 +32,8 @@ def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> D
     """
     if options is None:
         options = _DEFAULT_OPTIONS
-    normalized_children = _normalize_children(doc.children, in_block_context=True, options=options)
+    normalized_children = _normalize_children(doc.children, options)
+    normalized_children = _trim_line_boundary_whitespace(normalized_children)
     return Document(
         children=normalized_children,
         doctype=doc.doctype,
@@ -42,44 +43,13 @@ def normalize_tree(doc: Document, options: Optional[CompareOptions] = None) -> D
     )
 
 
-def _has_inline_elements(children: Sequence[Node], options: CompareOptions) -> bool:
-    """
-    Check if children list contains inline elements.
-
-    This determines whether whitespace between text nodes and inline elements
-    is significant. If there are inline elements, spaces around them matter.
-
-    Note: This checks what will remain AFTER normalization (comments removed).
-    """
-    for child in _filter_ignored_nodes(children, options):
-        if isinstance(child, Element):
-            if not is_block_element(child.tag):
-                return True
-    return False
-
-
-def _has_significant_text(children: Sequence[Node], options: CompareOptions) -> bool:
-    """
-    Check if children list contains non-whitespace text content.
-
-    This helps determine if whitespace is significant: if there's text
-    mixed with inline elements, whitespace between them matters.
-    """
-    for child in children:
-        if isinstance(child, TextNode):
-            if child.content.strip():
-                return True
-    return False
-
-
 def _normalize_children(
     children: Sequence[Node],
-    in_block_context: bool,
     options: CompareOptions,
 ) -> list[Node]:
     result: list[Node] = []
     for child in _filter_ignored_nodes(children, options):
-        normalized = _normalize_node(child, in_block_context, options)
+        normalized = _normalize_node(child, options)
         if normalized is not None:
             result.append(normalized)
     return result
@@ -101,15 +71,14 @@ def _should_ignore_node(node: Node, options: CompareOptions) -> bool:
     return False
 
 
-def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions) -> Optional[Node]:
+def _normalize_node(node: Node, options: CompareOptions) -> Optional[Node]:
     """
     Normalize a single node.
 
-    Returns None if the node should be removed (whitespace-only text in block context,
-    or comments when ignore_comments is True).
+    Returns None for comments which are ignored by the comparison options.
     """
     if isinstance(node, TextNode):
-        return _normalize_text_node(node, in_block_context)
+        return _normalize_text_node(node)
     elif isinstance(node, Element):
         return _normalize_element(node, options)
     elif isinstance(node, Comment):
@@ -123,43 +92,19 @@ def _normalize_node(node: Node, in_block_context: bool, options: CompareOptions)
     return node
 
 
-def _normalize_text_node(node: TextNode, in_block_context: bool) -> Optional[TextNode]:
-    """
-    Normalize a text node.
-
-    In block context (only block elements as siblings), whitespace-only text
-    nodes are removed, and leading/trailing whitespace is stripped.
-
-    In inline context (mixed with inline elements or text), consecutive
-    whitespace is collapsed to a single space, preserving significant
-    whitespace for rendering.
-    """
-    if in_block_context:
-        # remove whitespace-only text nodes between block elements
-        if node.content.strip() == '':
-            return None
-        # normalize leading/trailing whitespace in block context
-        # also collapse internal whitespace
-        normalized = _WHITESPACE_RE.sub(' ', node.content).strip()
-        return TextNode(content=normalized)
-    else:
-        # In inline context: collapse consecutive whitespace to single space
-        # but preserve leading/trailing spaces (they're significant)
-        normalized = _WHITESPACE_RE.sub(' ', node.content)
-        if normalized == '':
-            return None
-        return TextNode(content=normalized)
+def _normalize_text_node(node: TextNode) -> Optional[TextNode]:
+    """Collapse a whitespace run without deciding yet whether it renders."""
+    normalized = _WHITESPACE_RE.sub(' ', node.content)
+    if normalized == '':
+        return None
+    return TextNode(content=normalized)
 
 
 def _normalize_element(element: Element, options: CompareOptions) -> Element:
     """Normalize an element and its children."""
-    children_in_block_context = _children_are_in_block_context(element, options)
-
-    normalized_children = _normalize_children(
-        element.children,
-        in_block_context=children_in_block_context,
-        options=options,
-    )
+    normalized_children = _normalize_children(element.children, options)
+    if is_block_element(element.tag):
+        normalized_children = _trim_line_boundary_whitespace(normalized_children)
 
     return Element(
         tag=element.tag,
@@ -169,21 +114,58 @@ def _normalize_element(element: Element, options: CompareOptions) -> Element:
     )
 
 
-def _children_are_in_block_context(element: Element, options: CompareOptions) -> bool:
-    """Return the whitespace mode used by the current element heuristic."""
-    # Determine if children are in block context or inline context.
-    # Whitespace is significant (inline context) if:
-    # 1. The element is inline (not a block element)
-    # 2. OR the element contains inline elements AND significant text as children
-    #
-    # If a block element contains only inline elements (no text), or only text
-    # (no inline elements), we can strip leading/trailing whitespace.
-    # Whitespace only matters when text is ADJACENT to inline elements.
-    has_inline_children = _has_inline_elements(element.children, options)
-    has_text_content = _has_significant_text(element.children, options)
-    # Whitespace is significant only when there's both inline elements AND text
-    inline_context = has_inline_children and has_text_content
-    return is_block_element(element.tag) and not inline_context
+def _trim_line_boundary_whitespace(children: list[Node]) -> list[Node]:
+    """Remove collapsed spaces which occur at the start or end of a line."""
+    _trim_leading_whitespace(children, has_content=False)
+    _trim_trailing_whitespace(children, has_content=False)
+    return _remove_empty_text_nodes(children)
+
+
+def _trim_leading_whitespace(children: Sequence[Node], has_content: bool) -> bool:
+    """Trim line-start spaces in document order and return the final line state."""
+    for child in children:
+        if isinstance(child, TextNode):
+            if not has_content:
+                child.content = child.content.lstrip(' ')
+            if child.content:
+                has_content = True
+        elif isinstance(child, Element):
+            if _is_line_boundary(child):
+                has_content = False
+            else:
+                has_content = _trim_leading_whitespace(child.children, has_content)
+    return has_content
+
+
+def _trim_trailing_whitespace(children: Sequence[Node], has_content: bool) -> bool:
+    """Trim line-end spaces in reverse document order and return the line state."""
+    for child in reversed(children):
+        if isinstance(child, TextNode):
+            if not has_content:
+                child.content = child.content.rstrip(' ')
+            if child.content:
+                has_content = True
+        elif isinstance(child, Element):
+            if _is_line_boundary(child):
+                has_content = False
+            else:
+                has_content = _trim_trailing_whitespace(child.children, has_content)
+    return has_content
+
+
+def _is_line_boundary(element: Element) -> bool:
+    return is_block_element(element.tag) or is_forced_line_break(element.tag)
+
+
+def _remove_empty_text_nodes(children: Sequence[Node]) -> list[Node]:
+    result = []
+    for child in children:
+        if isinstance(child, TextNode) and not child.content:
+            continue
+        if isinstance(child, Element):
+            child.children = _remove_empty_text_nodes(child.children)
+        result.append(child)
+    return result
 
 
 def _normalize_conditional_comment(
@@ -198,11 +180,8 @@ def _normalize_conditional_comment(
     """
     if options.ignore_conditional_comments:
         return None
-    normalized_children = _normalize_children(
-        node.children,
-        in_block_context=True,
-        options=options,
-    )
+    normalized_children = _normalize_children(node.children, options)
+    normalized_children = _trim_line_boundary_whitespace(normalized_children)
     return ConditionalComment(
         condition=node.condition,
         children=normalized_children,

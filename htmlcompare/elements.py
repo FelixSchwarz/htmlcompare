@@ -3,6 +3,7 @@
 
 __all__ = [
     'is_block_element',
+    'is_forced_line_break',
     'is_inline_element',
     'is_preformatted_element',
     'is_self_closing_significant',
@@ -63,6 +64,11 @@ PREFORMATTED_ELEMENTS = frozenset({
 
 def is_block_element(tag: str) -> bool:
     return tag.lower() in BLOCK_ELEMENTS
+
+
+def is_forced_line_break(tag: str) -> bool:
+    """Return whether the element ends the current inline line."""
+    return tag.lower() == 'br'
 
 
 def is_inline_element(tag: str) -> bool:

@@ -453,6 +453,29 @@ def test_can_detect_significant_whitespace():
     assert not result.is_equal
 
 
+@pytest.mark.parametrize(('expected_html', 'actual_html'), [
+    # a collapsible space does not render at the start/end of a block's content
+    ('<div>foo <b>bar</b> </div>', '<div>foo <b>bar</b></div>'),
+    ('<div> <b>foo</b> bar</div>', '<div><b>foo</b> bar</div>'),
+    # ... nor next to a <br>, which ends the line box
+    ('<div>foo <br>bar</div>', '<div>foo<br>bar</div>'),
+    ('<div>foo<br> bar</div>', '<div>foo<br>bar</div>'),
+    # inline element boundaries do not start a separate whitespace context
+    ('<div><span> foo</span></div>', '<div><span>foo</span></div>'),
+    ('<div><span>foo </span></div>', '<div><span>foo</span></div>'),
+])
+def test_ignores_whitespace_which_does_not_render(expected_html, actual_html):
+    assert compare_html(expected_html, actual_html).is_equal
+
+
+def test_detects_whitespace_between_inline_elements():
+    result = compare_html(
+        '<div><b>foo</b> <b>bar</b></div>',
+        '<div><b>foo</b><b>bar</b></div>',
+    )
+    assert not result.is_equal
+
+
 # --- Comment Handling ---
 
 def test_ignores_leading_comments_by_default():
