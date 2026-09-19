@@ -4,7 +4,11 @@ import re
 from collections.abc import Sequence
 from typing import Optional
 
-from htmlcompare.elements import is_block_element, is_forced_line_break
+from htmlcompare.elements import (
+    is_atomic_inline_element,
+    is_block_element,
+    is_forced_line_break,
+)
 from htmlcompare.nodes import (
     Comment,
     ConditionalComment,
@@ -51,8 +55,16 @@ def _normalize_children(
     for child in _filter_ignored_nodes(children, options):
         normalized = _normalize_node(child, options)
         if normalized is not None:
-            result.append(normalized)
+            _append_normalized_node(result, normalized)
     return result
+
+
+def _append_normalized_node(result: list[Node], node: Node) -> None:
+    """Append a node, joining text which only an ignored comment separated."""
+    if result and isinstance(result[-1], TextNode) and isinstance(node, TextNode):
+        result[-1].content = _WHITESPACE_RE.sub(' ', result[-1].content + node.content)
+    else:
+        result.append(node)
 
 
 def _filter_ignored_nodes(
@@ -134,6 +146,8 @@ def _trim_leading_whitespace(children: Sequence[Node], has_content: bool) -> boo
                 has_content = False
             else:
                 has_content = _trim_leading_whitespace(child.children, has_content)
+                if is_atomic_inline_element(child.tag):
+                    has_content = True
     return has_content
 
 
@@ -150,6 +164,8 @@ def _trim_trailing_whitespace(children: Sequence[Node], has_content: bool) -> bo
                 has_content = False
             else:
                 has_content = _trim_trailing_whitespace(child.children, has_content)
+                if is_atomic_inline_element(child.tag):
+                    has_content = True
     return has_content
 
 

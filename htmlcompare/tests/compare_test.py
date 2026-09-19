@@ -476,6 +476,27 @@ def test_detects_whitespace_between_inline_elements():
     assert not result.is_equal
 
 
+@pytest.mark.parametrize(('expected_html', 'actual_html'), [
+    ('<div>foo <p>bar</p></div>', '<div>foo<p>bar</p></div>'),
+    ('<div><p>foo</p> bar</div>', '<div><p>foo</p>bar</div>'),
+    ('<div>foo <br> <br> bar</div>', '<div>foo<br><br>bar</div>'),
+    ('<div><span></span> <span></span></div>', '<div><span></span><span></span></div>'),
+])
+def test_ignores_whitespace_at_inline_flow_boundaries(expected_html, actual_html):
+    assert compare_html(expected_html, actual_html).is_equal
+
+
+@pytest.mark.parametrize(('expected_html', 'actual_html'), [
+    ('<div><span><b>foo</b></span> <em>bar</em></div>',
+     '<div><span><b>foo</b></span><em>bar</em></div>'),
+    ('<div>foo<span> </span>bar</div>', '<div>foo<span></span>bar</div>'),
+    ('<div><img src="a"> <img src="b"></div>',
+     '<div><img src="a"><img src="b"></div>'),
+])
+def test_detects_whitespace_inside_an_inline_flow(expected_html, actual_html):
+    assert not compare_html(expected_html, actual_html).is_equal
+
+
 # --- Comment Handling ---
 
 def test_ignores_leading_comments_by_default():
@@ -501,6 +522,15 @@ def test_can_ignore_whitespace_after_comment():
     </div>'''
     expected_html = '<div><b>foo</b></div>'
     assert compare_html(actual_html, expected_html).is_equal
+
+
+@pytest.mark.parametrize(('commented_html', 'plain_html'), [
+    ('<div>foo<!-- comment --> bar</div>', '<div>foo bar</div>'),
+    ('<div>foo <!-- comment --> bar</div>', '<div>foo bar</div>'),
+    ('<div>foo<!-- comment -->bar</div>', '<div>foobar</div>'),
+])
+def test_ignored_comment_is_transparent_to_text_normalization(commented_html, plain_html):
+    assert compare_html(commented_html, plain_html).is_equal
 
 
 def test_ignores_comments_with_different_content_by_default():

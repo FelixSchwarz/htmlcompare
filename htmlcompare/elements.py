@@ -2,6 +2,7 @@
 
 
 __all__ = [
+    'is_atomic_inline_element',
     'is_block_element',
     'is_forced_line_break',
     'is_inline_element',
@@ -56,6 +57,16 @@ INLINE_ELEMENTS = frozenset({
     'progress', 'select', 'textarea',
 })
 
+# Inline elements which render an atomic box even without text children. They
+# therefore make a space next to them significant within an inline line.
+ATOMIC_INLINE_ELEMENTS = frozenset({
+    # Embedded content
+    'audio', 'canvas', 'embed', 'iframe', 'img', 'math', 'object',
+    'svg', 'video',
+    # Form controls
+    'button', 'input', 'meter', 'progress', 'select', 'textarea',
+})
+
 # Elements that preserve whitespace (like <pre>).
 PREFORMATTED_ELEMENTS = frozenset({
     'pre', 'code', 'textarea', 'script', 'style',
@@ -64,6 +75,10 @@ PREFORMATTED_ELEMENTS = frozenset({
 
 def is_block_element(tag: str) -> bool:
     return tag.lower() in BLOCK_ELEMENTS
+
+
+def is_atomic_inline_element(tag: str) -> bool:
+    return tag.lower() in ATOMIC_INLINE_ELEMENTS
 
 
 def is_forced_line_break(tag: str) -> bool:
