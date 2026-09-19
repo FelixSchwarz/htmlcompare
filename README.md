@@ -41,7 +41,10 @@ htmlcompare expected.html actual.html
 What is ignored
 ----------------------
 
-- whitespace between tags, and `<div />` written as `<div></div>`
+- collapsible HTML whitespace which does not render with `white-space: normal`:
+  indentation around block elements, spaces at the start or end of an inline
+  line and spaces next to `<br>`. Longer whitespace runs collapse to one space.
+- `<div />` written as `<div></div>`
 - the order of HTML attributes, and the order of the CSS classes inside a
   `class` attribute
 - an empty `style` or `class` attribute, which is treated like an absent one
@@ -62,6 +65,8 @@ the same thing. Where the meaning can change, the documents differ:
 
 - whitespace which CSS gives a meaning to: `.a .b` is the descendant combinator
   and not `.a.b`, `font-family: Arial Black` is not `font-family: ArialBlack`
+- whitespace between rendered inline content: `<b>foo</b> <b>bar</b>` renders
+  with a word separator, unlike `<b>foo</b><b>bar</b>`
 - the order of declarations which can override each other, such as `background`
   and `background-color`
 - custom CSS syntax beginning with `--`, whose names are case-sensitive, and
@@ -90,6 +95,13 @@ Options
 
 Limitations / Plans
 ----------------------
+**HTML whitespace and layout**. Whitespace comparison assumes
+`white-space: normal` and the standard block/inline roles represented by
+htmlcompare's built-in element lists. htmlcompare does not resolve the CSS
+cascade, so author styles which change `display` or `white-space` are outside
+this model. Whitespace-preserving contexts such as `pre`, `pre-wrap` and
+`break-spaces` are not interpreted as browser layout.
+
 **No validation of conditional comments**. Their condition is compared but not checked for validity. Not sure which library I can use here but at some point I'll likely need this as well.
 
 **JavaScript** - for obvious reasons it will be impossible to implement perfect JS comparison but it might be possible to run some kind of "beautifier" to take care of insignificant stylistic changes. However I don't need this feature so this is unlikely to get implemented (unless contributed by someone else).
